@@ -1,6 +1,6 @@
 {
   "name": "newtester4-7",
-  "account_id": "d3e48d5a36a307438156883daa51c2a6",
+  "account_id": "c49fdd983e8a33f7d5ba959276bee597",
   "main": "worker.mjs",
   "compatibility_date": "2026-10-19",
   "workers_dev": true,
