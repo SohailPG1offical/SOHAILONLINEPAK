@@ -184,7 +184,7 @@ function BRPlayerCharacterBase:GetESPStatus()
 end
 
 local function Notify(msg)
-    local s = "[SohailPG1] " .. tostring(msg)
+    local s = "[VIP] " .. tostring(msg)
     pcall(function()
         if _G.GTLMODNotify then
             _G.GTLMODNotify(s)
@@ -809,7 +809,7 @@ end
 
 local function NotifyMod(msg) 
     if not IsModAuthorized() then return end
-    local s = "[SohailPG1 VIP] " .. tostring(msg)
+    local s = "[ VIP] " .. tostring(msg)
     pcall(function() if _G.GTLMODNotify then _G.GTLMODNotify(s) end end)
     pcall(function() 
         local sh = import("ScriptHelperClient") 
@@ -2070,7 +2070,7 @@ local StackHeadshot200x = {
 
         SettingPageDefine.ModMenu = {
             Key = "ModMenu",
-            Text= "♛ VIP MENU ♛ @SohailPG1",
+            Text= "♛ VIP MENU ♛",
             UIKey = "Setting_Page_Privacy", 
             Category = {
                 { Key = "Cat_ESP_Visual", Text= "♛ ESP ♛", Stack = StackESPVisual },
@@ -2114,32 +2114,8 @@ local StackHeadshot200x = {
 end
 
 local function ShowGTLMODVIPMenu() 
-    if _G.GTLMODMenuAlreadyShown then return end
-    if _G.GTLMODState.MenuStep ~= 0 then return end
-
-    pcall(function()
-        local Msg = require("client.slua.logic.common.logic_common_msg_box")
-        if not Msg or not Msg.Show then return end
-
-        local function Step_ScamAlert()
-            Msg.Show(1, "♛VIP MOD PAK @SohailPG1♛", "➜ WELCOME TO @SohailPG1 VIP MOD PAK FILE\n\nNO FEEDBACK - NO SECURE UPDATE\n\n➜ CONTACT: @SohailPG1", function() local Web = require("client.slua.logic.url.logic_webview_sdk"); if Web and Web.OpenURL then Web:OpenURL("https://t.me/SohailPG1") end end, function() end, "JOIN", "CLOSE")
-            _G.GTLMODState.MenuStep = 99
-            _G.GTLMODMenuAlreadyShown = true
-        end
-
-        local function Step_Welcome()
-            Msg.Show(1, "♛WELCOME @SohailPG1♛", "➜WELCOME TO @SohailPG1 VIP MOD PAK FILE\n\n♛ACTIVATION SUCCESSFUL!\n\nENJOY YOUR MOD AND SEND FEEDBACK TO OWNER.\nTHE REAL OWNER IS @SohailPG1\n\nCONTACT: @SohailPG1",
-            function() 
-                _G.InitModMenuTab()
-                Notify("VIP MOD PAK BY @SohailPG1 - TOGGLE FEATURES!")
-                Step_ScamAlert()
-            end, 
-            function() end, "OK", "CLOSE")
-        end
-
-        _G.GTLMODState.MenuStep = 1
-        Step_Welcome() 
-    end)
+    -- Popup and credit completely removed as requested
+    return
 end
 
 local function InitializeGraphicsUnlock() 
@@ -3939,7 +3915,7 @@ end
             pcall(function()
                 local MyHUD = Cached_MyHUD
                 if Valid(MyHUD) then
-                    local text = string.format("[ PLAY SAFE!! @SohailPG1 ]", realCount, aiCount)
+                    local text = string.format("[ PLAY SAFE!!  ]", realCount, aiCount)
                     MyHUD:AddDebugText(text, localPlayer, 0.06, {X=0, Y=0, Z=0}, {X=0, Y=0, Z=0}, C_RED, true, false, true, nil, 0.8, true)
                 end
             end)
@@ -4132,7 +4108,7 @@ local myToken = _G.GTLMODState.LoopToken
 local function FastTick() 
     if isExpired then 
         if not _G.GTLMODNotifiedExpire then
-            Notify("MOD HAS EXPIRED! PLEASE CONTACT OWNER TO RENEW!\nTelegram @SohailPG1")
+            Notify("MOD HAS EXPIRED! PLEASE CONTACT OWNER TO RENEW!\nTelegram @")
             _G.GTLMODNotifiedExpire = true
         end
         return 
