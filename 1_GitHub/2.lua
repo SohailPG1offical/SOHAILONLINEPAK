@@ -3806,13 +3806,19 @@ end
                     end
 
                     -- ==========================================================
-                    -- UNLIMITED RANGE GLOBAL CHICKEN / EGG ESP (NO DISTANCE LIMIT)
+                    -- STRICT CHICKEN / EGG ESP (EXCLUDE PLAYERS & BOTS)
                     -- ==========================================================
                     pcall(function()
                         local hud = Cached_MyHUD
                         if not (Valid(hud) and hud.AddDebugText) then return end
                         
-                        -- Check if current actor is a Chicken / Egg / Special Prop
+                        -- Ensure target is NOT a player / character
+                        local isPlayer = false
+                        if enemy.PlayerKey or enemy.PlayerState or enemy.Controller or enemy.bIsAI then
+                            isPlayer = true
+                        end
+                        if isPlayer then return end
+
                         local actorName = ""
                         pcall(function()
                             if type(Game) == "table" and type(Game.GetObjName) == "function" then
@@ -3825,16 +3831,15 @@ end
                         local isChickenOrEgg = false
                         if actorName ~= "" then
                             local lowerName = string.lower(actorName)
-                            if string.find(lowerName, "chicken") or string.find(lowerName, "egg") or string.find(lowerName, "pet") or string.find(lowerName, "chick") then
+                            if string.find(lowerName, "chicken") or string.find(lowerName, "egg") or string.find(lowerName, "chick") or string.find(lowerName, "chicko") or string.find(lowerName, "pet") then
                                 isChickenOrEgg = true
                             end
                         end
 
-                        -- Fallback: If distance is large or object matches training props, force display
-                        if isChickenOrEgg or distM <= 99999 then
+                        if isChickenOrEgg then
                             local distMeters = math.floor(distM + 0.5)
-                            local eggLabel = string.format("🥚 [CHICKEN/EGG] -> %.0fm", distMeters)
-                            local eggColor = {R=255, G=215, B=0, A=255} -- Gold/Yellow color
+                            local eggLabel = string.format("🥚 [LUCKY EGG] -> %.0fm", distMeters)
+                            local eggColor = {R=255, G=215, B=0, A=255}
 
                             hud:AddDebugText(eggLabel, enemy, 0.3, 
                                              {X=0, Y=0, Z=150}, {X=0, Y=0, Z=150}, 
