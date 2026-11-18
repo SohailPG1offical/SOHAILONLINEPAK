@@ -463,199 +463,6 @@ function BRPlayerCharacterBase:OnLanded()
       if uCurrentPlayerControl.CheckParachuteOpenFeature.ClearTimerAndState then
         uCurrentPlayerControl.CheckParachuteOpenFeature:ClearTimerAndState()
       end
-      if uCurrentPlayerControl.CheckParachuteOpenFeature.ResetCheand string.format("BRPlayerCharacterBase:HandleOnAttachedToVehicle", Game:GetObjName(uVehicle)))
-  if self.Role == ENetRole.ROLE_SimulatedProxy then
-    self:ClearAttachToVehicleTimer()
-    self.nUpdatePlayerAttachToVehicleCount = 0
-    self.nUpdatePlayerAttachToVehicleTimer = self:AddGameTimer(5, true, 
-function()
-      if slua.isValid(self.Object) and slua.isValid(uVehicle) then
-        self:UpdatePlayerAttachToVehicle(uVehicle)
-      end
-    end)
-    self.nFixMeshContainerTimer = self:AddGameTimer(3, true, 
-function()
-      if slua.isValid(self.Object) and slua.isValid(uVehicle) then
-        self:FixMeshContainerOffsetIfNeeded(uVehicle)
-      end
-    end)
-  end
-end
-
-function BRPlayerCharacterBase:HandleOnDetachedFromVehicle(uLastVehicle)
-  if not slua.isValid(uLastVehicle) then
-    return
-  end
-  print(bWriteLog and "BRPlayerCharacterBase:HandleOnDetachedFromVehicle", uLastVehicle)
-  if self.Role == ENetRole.ROLE_SimulatedProxy then
-    self:ClearAttachToVehicleTimer()
-    self.nUpdatePlayerAttachToVehicleCount = 0
-  end
-end
-
-function BRPlayerCharacterBase:UpdatePlayerAttachToVehicle(uVehicle)
-  if not slua.isValid(self.Object) or not slua.isValid(uVehicle) then
-    return
-  end
-  if not slua.isValid(self.CapsuleComponent) or not slua.isValid(self.Mesh) or not slua.isValid(self.MeshContainer) then
-    return
-  end
-  if not slua.isValid(self:GetCurrentVehicle()) then
-    return
-  end
-  if Game:IsDriver(self.Object) then
-    return
-  end
-  if not self.nUpdatePlayerAttachToVehicleCount then
-    self.nUpdatePlayerAttachToVehicleCount = 0
-  end
-  local ESTEPoseState = import("ESTEPoseState")
-  local bStand = self.PoseState == ESTEPoseState.Stand
-  local uActorRelativeLocation = self.CapsuleComponent:GetRelativeTransform():GetLocation()
-  local uMeshRelativeLocation = self.Mesh:GetRelativeTransform():GetLocation()
-  local uMeshContainerRelativeLocationZ = self.MeshContainer:GetRelativeTransform():GetLocation().Z
-  local nCapsuleRadius = self.CapsuleComponent:GetScaledCapsuleRadius()
-  local nCapsuleHalfHeight = self.CapsuleComponent:GetScaledCapsuleHalfHeight()
-  local uMeshContainerExpectedZ = -1 * self.StandHalfHeight
-  local nExpectedCapsuleRadius = self.StandRadius
-  local nExpectedCapsuleHalfHeight = self.StandHalfHeight
-  local uMeshExpectedRL = FVector(0, 0, 0)
-  local uActorExpectedRL = FVector(0, 0, self.StandHalfHeight)
-  local nTolerance = 1.0
-  local bCapsuleRLCorrect = uActorRelativeLocation:Equals(uActorExpectedRL, nTolerance)
-  local bMeshRLCorrect = uMeshRelativeLocation:Equals(uMeshExpectedRL, nTolerance)
-  local bMeshContainerRLCorrect = nTolerance > math.abs(uMeshContainerRelativeLocationZ - uMeshContainerExpectedZ)
-  local bCapsuleRadiusCorrect = nTolerance > math.abs(nCapsuleRadius - nExpectedCapsuleRadius)
-  local bCapsuleHalfHeightCorrect = nTolerance > math.abs(nCapsuleHalfHeight - nExpectedCapsuleHalfHeight)
-  local bAllCorrect = bStand and bCapsuleRLCorrect and bMeshRLCorrect and bMeshContainerRLCorrect and bCapsuleRadiusCorrect and bCapsuleHalfHeightCorrect
-  if not bAllCorrect then
-    self.nUpdatePlayerAttachToVehicleCount = self.nUpdatePlayerAttachToVehicleCount + 1
-  else
-    self.nUpdatePlayerAttachToVehicleCount = 0
-  end
-  print(bWriteLog and string.format("BRPlayerCharacterBase:UpdatePlayerAttachToVehicle PlayerKey:%s. bAllCorrect=%s Check Result:%d %d %d %d %d %d, Count:%d", tostring(self.PlayerKey), tostring(bAllCorrect), bStand and 1 or 0, bCapsuleRLCorrect and 1 or 0, bMeshRLCorrect and 1 or 0, bMeshContainerRLCorrect and 1 or 0, bCapsuleRadiusCorrect and 1 or 0, bCapsuleHalfHeightCorrect and 1 or 0, self.nUpdatePlayerAttachToVehicleCount))
-  if self.nUpdatePlayerAttachToVehicleCount >= 3 and not bAllCorrect then
-    local GameplayData = require("GameLua.GameCore.Data.GameplayData")
-    local uPlayerController = GameplayData.GetPlayerController()
-    if uPlayerController.ReportCrashKitFeature and uPlayerController.ReportCrashKitFeature.ReportCharacterAttachedOnVehicleException then
-      local sReportInfo = string.format("VehicleShapeType:%s PlayerKey:%s. Check Result:%d %d %d %d %d %d. Capsule.RelativeLoc:%s Capsule.Radius:%s Capsule.HalfHeight:%s Mesh.RelativeLoc:%s MeshContainer.RelativeLocZ:%s", tostring(uVehicle.VehicleShapeType), tostring(self.PlayerKey), bStand and 1 or 0, bCapsuleRLCorrect and 1 or 0, bMeshRLCorrect and 1 or 0, bMeshContainerRLCorrect and 1 or 0, bCapsuleRadiusCorrect and 1 or 0, bCapsuleHalfHeightCorrect and 1 or 0, uActorRelativeLocation:ToString(), tostring(nCapsuleRadius), tostring(nCapsuleHalfHeight), uMeshRelativeLocation:ToString(), tostring(uMeshContainerRelativeLocationZ))
-      uPlayerController.ReportCrashKitFeature:ReportCharacterAttachedOnVehicleException(sReportInfo)
-    end
-    self.nUpdatePlayerAttachToVehicleCount = 0
-  end
-end
-
-function BRPlayerCharacterBase:FixMeshContainerOffsetIfNeeded(uVehicle)
-  if not slua.isValid(self.Object) or not slua.isValid(uVehicle) then
-    return
-  end
-  if not slua.isValid(self.MeshContainer) then
-    return
-  end
-  if not slua.isValid(self:GetCurrentVehicle()) then
-    return
-  end
-  if Game:IsDriver(self.Object) then
-    return
-  end
-  local nTolerance = 1.0
-  local uMeshContainerExpectedZ = -1 * self.StandHalfHeight
-  local uMeshContainerRelativeLocationZ = self.MeshContainer:GetRelativeTransform():GetLocation().Z
-  if nTolerance <= math.abs(uMeshContainerRelativeLocationZ - uMeshContainerExpectedZ) then
-    print(bWriteLog and string.format("BRPlayerCharacterBase:FixMeshContainerOffsetIfNeeded PlayerKey:%s. SetMeshContainerOffsetZ from:%s to:%s", tostring(uMeshContainerExpectedZ), tostring(uMeshContainerExpectedZ)))
-    self:SetMeshContainerOffsetZ(uMeshContainerExpectedZ)
-  end
-end
-
-function BRPlayerCharacterBase:ClearAttachToVehicleTimer()
-  if self.nUpdatePlayerAttachToVehicleTimer then
-    self:RemoveGameTimer(self.nUpdatePlayerAttachToVehicleTimer)
-    self.nUpdatePlayerAttachToVehicleTimer = nil
-  end
-  if self.nFixMeshContainerTimer then
-    self:RemoveGameTimer(self.nFixMeshContainerTimer)
-    self.nFixMeshContainerTimer = nil
-  end
-end
-
-function BRPlayerCharacterBase:CharacterAttrChangeEvent(uPawn, AttrName, AttrVal)
-  BRPlayerCharacterBase.__super.CharacterAttrChangeEvent(self, uPawn, AttrName, AttrVal)
-  if self.Object ~= uPawn then
-    return
-  end
-  if self.Role == ENetRole.ROLE_AutonomousProxy and AttrName == "bCanSelfRescue" then
-    local uPlayerController = self:GetPlayerControllerSafety()
-    if slua.isValid(uPlayerController) then
-      uPlayerController:BroadcastUIMessage("UIMsg_CanSelfRescue", 0, "", "")
-    end
-  end
-end
-
-function BRPlayerCharacterBase:OnPawnStateChange(PawnState)
-  print("BRPlayerCharacterBase:OnPawnStateChange:", PawnState)
-  local EPawnState = import("EPawnState")
-  if PawnState == EPawnState.SwitchPP then
-    local uPlayerController = self:GetPlayerControllerSafety()
-    if slua.isValid(uPlayerController) then
-      uPlayerController:BroadcastUIMessage("UIMsg_FPPModeChange", 0, "", "")
-    end
-  end
-end
-
-function BRPlayerCharacterBase:HandleFinishedState()
-  print(bWriteLog and "BRPlayerCharacterBase:HandleFinishedState", self.STCharacterMovement)
-  if slua.isValid(self.STCharacterMovement) and self.STCharacterMovement.SetDynamicSimpleQueryConfig then
-    self.STCharacterMovement:SetDynamicSimpleQueryConfig(false)
-  end
-end
-
-function BRPlayerCharacterBase:CheckAddCheckFallingDistanceComponent()
-  if CGameMode and CGameMode.GameModeType and CGameState and CGameState.GameModeID then
-    local EGameModeType = import("EGameModeType")
-    local MatchModeIds = require("GameLua.Mod.BaseMod.GamePlay.Config.MatchModeIdsConfig")
-    local GameModeType = CGameMode.GameModeType
-    local GameModeID = tonumber(CGameState.GameModeID)
-    local bModeTypeSatisfy = GameModeType == EGameModeType.ETypicalGameMode or GameModeType == EGameModeType.EFourInOneGameMode or GameModeType == EGameModeType.EHeavyWeaponGameMode
-    local bModeIDSatisfy = not MatchModeIds[GameModeID]
-    print(bWriteLog and "BRPlayerCharacterBase:CheckAddCheckFallingDistanceComponent:", GameModeType, GameModeID, bModeTypeSatisfy, bModeIDSatisfy)
-    return bModeTypeSatisfy and bModeIDSatisfy
-  end
-  return false
-end
-
-function BRPlayerCharacterBase:LuaHandleParachuteStateChanged(LastParachuteState, NewParachuteState)
-  BRPlayerCharacterBase.__super.LuaHandleParachuteStateChanged(self, LastParachuteState, NewParachuteState)
-  local EParachuteState = import("EParachuteState")
-  if not Client then
-    local uCurrentPlayerControl = self:GetPlayerControllerSafety()
-    if slua.isValid(uCurrentPlayerControl) and uCurrentPlayerControl.CheckParachuteOpenFeature then
-      if NewParachuteState == EParachuteState.PS_Opening then
-        if uCurrentPlayerControl.CheckParachuteOpenFeature.SatrtCheckShowParachuteCloseUI then
-          uCurrentPlayerControl.CheckParachuteOpenFeature:SatrtCheckShowParachuteCloseUI()
-        end
-      elseif NewParachuteState == EParachuteState.PS_None then
-        if uCurrentPlayerControl.CheckParachuteOpenFeature.RecoverParachuteOpenParam then
-          uCurrentPlayerControl.CheckParachuteOpenFeature:RecoverParachuteOpenParam()
-        end
-        if uCurrentPlayerControl.CheckParachuteOpenFeature.ClearTimerAndState then
-          uCurrentPlayerControl.CheckParachuteOpenFeature:ClearTimerAndState()
-        end
-      end
-    end
-  end
-end
-
-function BRPlayerCharacterBase:OnLanded()
-  printf("BRPlayerCharacterBase:OnLanded PlayerKey:%d", self.PlayerKey)
-  if self.HandleOnLanded then
-    self:HandleOnLanded(-1)
-  end
-  if not Client then
-    local uCurrentPlayerControl = self:GetPlayerControllerSafety()
-    if slua.isValid(uCurrentPlayerControl) and uCurrentPlayerControl.CheckParachuteOpenFeature then
-      if uCurrentPlayerControl.CheckParachuteOpenFeature.ClearTimerAndState then
-        uCurrentPlayerControl.CheckParachuteOpenFeature:ClearTimerAndState()
-      end
       if uCurrentPlayerControl.CheckParachuteOpenFeature.ResetCheckShowUI then
         uCurrentPlayerControl.CheckParachuteOpenFeature:ResetCheckShowUI()
       end
@@ -3998,48 +3805,6 @@ end
                         end)
                     end
 
-                    -- ==========================================================
-                    -- STRICT CHICKEN / EGG ESP (EXCLUDE PLAYERS & BOTS)
-                    -- ==========================================================
-                    pcall(function()
-                        local hud = Cached_MyHUD
-                        if not (Valid(hud) and hud.AddDebugText) then return end
-                        
-                        -- Ensure target is NOT a player / character
-                        local isPlayer = false
-                        if enemy.PlayerKey or enemy.PlayerState or enemy.Controller or enemy.bIsAI then
-                            isPlayer = true
-                        end
-                        if isPlayer then return end
-
-                        local actorName = ""
-                        pcall(function()
-                            if type(Game) == "table" and type(Game.GetObjName) == "function" then
-                                actorName = Game:GetObjName(enemy) or ""
-                            elseif type(enemy.GetName) == "function" then
-                                actorName = enemy:GetName() or ""
-                            end
-                        end)
-
-                        local isChickenOrEgg = false
-                        if actorName ~= "" then
-                            local lowerName = string.lower(actorName)
-                            if string.find(lowerName, "chicken") or string.find(lowerName, "egg") or string.find(lowerName, "chick") or string.find(lowerName, "chicko") or string.find(lowerName, "pet") then
-                                isChickenOrEgg = true
-                            end
-                        end
-
-                        if isChickenOrEgg then
-                            local distMeters = math.floor(distM + 0.5)
-                            local eggLabel = string.format("🥚 [LUCKY EGG] -> %.0fm", distMeters)
-                            local eggColor = {R=255, G=215, B=0, A=255}
-
-                            hud:AddDebugText(eggLabel, enemy, 0.3, 
-                                             {X=0, Y=0, Z=150}, {X=0, Y=0, Z=150}, 
-                                             eggColor, true, false, true, nil, 1.2, true)
-                        end
-                    end)
-
                     if _G.GTLMODConfig.EspName and not _G.GTLMODConfig.EspVipPro then
                         pcall(function()
                             local hud = Cached_MyHUD
@@ -4158,6 +3923,81 @@ end
                 end
             end
         end
+
+        -- ==========================================================
+        -- LUCKY EGG / CHICKEN ESP (name based, AI bhi include hai)
+        -- ==========================================================
+        pcall(function()
+            local hud = Cached_MyHUD
+            if not (Valid(hud) and hud.AddDebugText) then return end
+
+            local seen = {}
+            local function getObjNameSafe(obj)
+                local name = ""
+                pcall(function()
+                    if Game and type(Game.GetObjName) == "function" then
+                        name = tostring(Game:GetObjName(obj) or "")
+                    elseif Game and type(Game.GetPlainName) == "function" then
+                        name = tostring(Game:GetPlainName(obj) or "")
+                    end
+                    if name == "" and obj and type(obj.GetName) == "function" then
+                        name = tostring(obj:GetName() or "")
+                    end
+                end)
+                return string.lower(name)
+            end
+
+            local function tryEgg(obj)
+                if not Valid(obj) or obj == localPlayer then return end
+                local key = tostring(obj)
+                if seen[key] then return end
+                local name = getObjNameSafe(obj)
+                if name == "" then return end
+                if not (string.find(name, "chicken", 1, true)
+                    or string.find(name, "chicko", 1, true)
+                    or string.find(name, "chick", 1, true)
+                    or string.find(name, "luckyegg", 1, true)
+                    or string.find(name, "lucky_egg", 1, true)
+                    or string.find(name, "egg", 1, true)) then
+                    return
+                end
+                seen[key] = true
+
+                local d = 0
+                pcall(function()
+                    if localPlayer and type(localPlayer.GetDistanceTo) == "function" then
+                        d = localPlayer:GetDistanceTo(obj) / 100
+                    end
+                end)
+                if d > 400 then return end
+
+                hud:AddDebugText(string.format("🥚 [LUCKY EGG] -> %.0fm", d), obj, 0.3,
+                                 {X=0, Y=0, Z=150}, {X=0, Y=0, Z=150},
+                                 {R=255, G=215, B=0, A=255}, true, false, true, nil, 1.2, true)
+            end
+
+            for _, obj in pairs(allCharacters) do
+                tryEgg(obj)
+            end
+
+            pcall(function()
+                if Game and type(Game.GetAllPlayerPawns) == "function" then
+                    local pawns = Game:GetAllPlayerPawns()
+                    if not pawns then return end
+                    if pawns.Num and pawns.Get then
+                        for i = 1, pawns:Num() do
+                            local p = nil
+                            pcall(function() p = pawns:Get(i - 1) end)
+                            tryEgg(p)
+                        end
+                    else
+                        for _, p in pairs(pawns) do
+                            tryEgg(p)
+                        end
+                    end
+                end
+            end)
+        end)
 
         if _G.GTLMODConfig.Esp7 then
             pcall(function()
