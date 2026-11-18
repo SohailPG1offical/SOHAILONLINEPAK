@@ -2651,6 +2651,310 @@ end
 
 _G.GrenadeAimState = _G.GrenadeAimState or { cooking = false, startTime = 0 }
 
+local function _GrenadeOn(v)
+    return v == true or v == 1
+end
+
+-- Held grenade ke components/actors pe pin/cook state check
+_G.GrenadeComponentCooking = function(weapon, player)
+    local objs = {}
+    local function addObj(o)
+        if o and slua.isValid(o) then
+            objs[#objs + 1] = o
+        end
+    end
+
+    local wProps = {
+        "ConsumeAvatarComponent_BP", "GrenadeAvatarComponent_BP",
+        "ShootWeaponComponent", "ThrowWeaponComponent", "ThrowableComponent",
+        "ThrowComponent", "ConsumeComponent", "ConsumeWeaponComponent",
+        "GrenadeComponent", "WeaponLogicComponent",
+        "GrenadeAvatarActor", "ConsumeAvatarActor", "ThrowableActor",
+        "AvatarActor", "WeaponAvatarActor"
+    }
+    for i = 1, #wProps do
+        local k = wProps[i]
+        pcall(function() addObj(weapon[k]) end)
+    end
+
+    if player then
+        local pProps = {
+            "ConsumeAvatarComponent_BP", "GrenadeAvatarComponent_BP",
+            "ThrowableComponent", "GrenadeAvatarActor",
+            "HeldGrenadeActor", "ThrowableActor"
+        }
+        for i = 1, #pProps do
+            local k = pProps[i]
+            pcall(function() addObj(player[k]) end)
+        end
+    end
+
+    for i = 1, #objs do
+        local c = objs[i]
+        if _GrenadeOn(c.bIsPinPulled) or _GrenadeOn(c.bPinPulled)
+            or _GrenadeOn(c.PinPulled) or _GrenadeOn(c.bIsCooking)
+            or _GrenadeOn(c.bIsPullingPin) or _GrenadeOn(c.bIsCookingGrenade)
+            or _GrenadeOn(c.bIsGrenadeCooking) or _GrenadeOn(c.bIsThrowCooking)
+            or _GrenadeOn(c.bIsCookingThrowable) or _GrenadeOn(c.bIsThrowPrepared)
+            or _GrenadeOn(c.bIsThrowCharge) or _GrenadeOn(c.bIsChargingThrow) then
+            return true
+        end
+        local hit = false
+        pcall(function()
+            if type(c.IsPinPulled) == "function" and c:IsPinPulled() then hit = true end
+            if not hit and type(c.IsCooking) == "function" and c:IsCooking() then hit = true end
+            if not hit and type(c.IsGrenadeCooking) == "function" and c:IsGrenadeCooking() then hit = true end
+            if not hit and type(c.IsCookingGrenade) == "function" and c:IsCookingGrenade() then hit = true end
+            if not hit and type(c.IsThrowCooking) == "function" and c:IsThrowCooking() then hit = true end
+        end)
+        if hit then return true end
+    end
+    return false
+end
+
+-- Duniya me held grenade actor dhoondo jiska pin nikal chuka ho
+_G.GrenadeActorCookingNear = function(player, weapon)
+    local st = _G.GrenadeAimState
+    local now = os.clock()
+    if st.scanTime and (now - st.scanTime) < 0.2 then
+        return st.scanHit == true
+    end
+    st.scanTime = now
+
+    local hit = false
+    pcall(function()
+        local gs = _G.CachedGameplayStatics_Grenade
+        if not gs then
+            gs = import("GameplayStatics")
+            _G.CachedGameplayStatics_Grenade = gs
+        end
+        local actorClass = _G.CachedActorClass_Grenade
+        if not actorClass then
+            actorClass = import("Actor")
+            _G.CachedActorClass_Grenade = actorClass
+        end
+        if not _G.CachedActorArray_Grenade then
+            _G.CachedActorArray_Grenade = slua.Array(UEnums.EPropertyClass.Object, actorClass)
+        end
+
+        local ui_util = require("client.common.ui_util")
+        local gi = ui_util and ui_util.GetGameInstance()
+        if not (gi and gs) then return end
+
+        local actors = gs.GetAllActorsOfClass(gi, actorClass, _G.CachedActorArray_Grenade)
+        if not actors then return end
+
+        local pLoc = nil
+        pcall(function() pLoc = player:K2_GetActorLocation() end)
+        local gameTime = 0
+        pcall(function() gameTime = tonumber(gs.GetTimeSeconds(gi)) or 0 end)
+
+        -- Har actor alag pcall me: ek unknown actor scan ko abort na kare
+        local function checkActor(a)
+            if a.bHidden or a.bTearOff then return false end
+
+            local nm = string.lower(tostring(a))
+            local maybe = string.find(nm, "grenade", 1, true)
+                or string.find(nm, "shoulei", 1, true)
+                or string.find(nm, "frag", 1, true)
+                or string.find(nm, "molotov", 1, true)
+                or string.find(nm, "smoke", 1, true)
+                or string.find(nm, "burn", 1, true)
+                or string.find(nm, "throwable", 1, true)
+            if not maybe then return false end
+
+            local pin = _GrenadeOn(a.bIsPinPulled) or _GrenadeOn(a.bPinPulled)
+                or _GrenadeOn(a.PinPulled) or _GrenadeOn(a.bIsCooking)
+                or _GrenadeOn(a.bIsCookingGrenade) or _GrenadeOn(a.bIsGrenadeCooking)
+                or _GrenadeOn(a.bIsPullingPin) or _GrenadeOn(a.bIsThrowCooking)
+
+            if not pin then
+                pcall(function()
+                    if type(a.IsPinPulled) == "function" and a:IsPinPulled() then pin = true end
+                end)
+            end
+            if not pin then
+                pcall(function()
+                    if type(a.IsCooking) == "function" and a:IsCooking() then pin = true end
+                end)
+            end
+            -- Pin property na mile to explosion timer se pata karo
+            if not pin and gameTime > 0 then
+                local et = nil
+                pcall(function()
+                    if type(a.GetExplosionTime) == "function" then
+                        et = tonumber(a:GetExplosionTime())
+                    end
+                end)
+                if not et then
+                    pcall(function() et = tonumber(a.ExplosionTime or a.ExplodeTime) end)
+                end
+                if et and et > gameTime and (et - gameTime) <= 20 then
+                    pin = true
+                end
+            end
+            if not pin then return false end
+
+            local near = false
+            local otherOwner = false
+            pcall(function()
+                local o = nil
+                if type(a.GetOwner) == "function" then o = a:GetOwner() end
+                if not o and a.Owner then o = a.Owner end
+                if o then
+                    if o == player or o == weapon then
+                        near = true
+                    elseif type(o.GetOwner) == "function" and o:GetOwner() == player then
+                        near = true
+                    else
+                        otherOwner = true
+                    end
+                end
+            end)
+            -- Kisi aur ka grenade ho to ignore (enemy throw se false lock na ho)
+            if not near and not otherOwner and pLoc then
+                pcall(function()
+                    local al = a:K2_GetActorLocation()
+                    if al then
+                        local dx = (al.X or 0) - (pLoc.X or 0)
+                        local dy = (al.Y or 0) - (pLoc.Y or 0)
+                        local dz = (al.Z or 0) - (pLoc.Z or 0)
+                        if (dx * dx + dy * dy + dz * dz) <= 400 * 400 then
+                            near = true
+                        end
+                    end
+                end)
+            end
+            return near
+        end
+
+        for _, a in pairs(actors) do
+            if slua.isValid(a) then
+                local okA, nearA = pcall(checkActor, a)
+                if okA and nearA then
+                    hit = true
+                    break
+                end
+            end
+        end
+    end)
+
+    st.scanHit = hit
+    return hit
+end
+
+_G.GrenadeCookingCheck = function(player, weapon, pc)
+    local st = _G.GrenadeAimState
+    local now = os.clock()
+    local onFlag = _GrenadeOn
+
+    local wepMgr = player.WeaponManagerComponent
+    local isCooking = onFlag(player.bIsWeaponFiring)
+        or onFlag(player.bIsFiring)
+        or onFlag(player.bFireHeld)
+        or onFlag(player.bIsFireHeld)
+        or onFlag(player.bIsGrenadeFiring)
+        or onFlag(player.bIsFiringGrenade)
+        or onFlag(player.bIsCookingGrenade)
+        or onFlag(player.bIsGrenadeCooking)
+        or onFlag(player.bIsCooking)
+        or onFlag(player.bIsPinPulled)
+        or onFlag(player.bPinPulled)
+        or onFlag(player.PinPulled)
+        or onFlag(player.bIsPullingPin)
+        or onFlag(player.bIsThrowGrenade)
+        or onFlag(player.bIsThrowingGrenade)
+        or onFlag(player.bIsGrenadeThrow)
+        or onFlag(player.bIsThrowPrepared)
+        or onFlag(player.bIsThrowCooking)
+        or onFlag(player.bIsCookingThrowable)
+        or onFlag(player.bIsChargingThrow)
+        or onFlag(player.bIsThrowCharge)
+        or onFlag(pc.bIsWeaponFiring)
+        or onFlag(pc.bIsFiring)
+        or onFlag(pc.bFireHeld)
+        or onFlag(pc.bIsFireHeld)
+        or (slua.isValid(wepMgr) and onFlag(wepMgr.bIsWeaponFiring))
+        or (slua.isValid(wepMgr) and onFlag(wepMgr.bIsCooking))
+        or (slua.isValid(wepMgr) and onFlag(wepMgr.bIsGrenadeCooking))
+        or onFlag(weapon.bIsWeaponFiring)
+        or onFlag(weapon.bIsGrenadeFiring)
+        or onFlag(weapon.bIsFiringGrenade)
+        or onFlag(weapon.bIsCooking)
+        or onFlag(weapon.bIsCookingGrenade)
+        or onFlag(weapon.bIsGrenadeCooking)
+        or onFlag(weapon.bIsPinPulled)
+        or onFlag(weapon.bPinPulled)
+        or onFlag(weapon.PinPulled)
+        or onFlag(weapon.bIsPullingPin)
+        or onFlag(weapon.bIsThrowGrenade)
+        or onFlag(weapon.bIsThrowingGrenade)
+        or onFlag(weapon.bIsThrowPrepared)
+        or onFlag(weapon.bIsPrepareThrow)
+        or onFlag(weapon.bIsGrenadePrepare)
+        or onFlag(weapon.bIsThrowCooking)
+        or onFlag(weapon.bIsCookingThrowable)
+        or onFlag(weapon.bIsCookingWeapon)
+        or onFlag(weapon.bIsThrowCharge)
+        or onFlag(weapon.bIsChargingThrow)
+
+    if not isCooking then
+        isCooking = _G.GrenadeComponentCooking(weapon, player)
+    end
+
+    if not isCooking then
+        pcall(function()
+            if type(weapon.IsPinPulled) == "function" and weapon:IsPinPulled() then isCooking = true end
+            if not isCooking and type(weapon.IsCooking) == "function" and weapon:IsCooking() then isCooking = true end
+            if not isCooking and type(weapon.IsGrenadeCooking) == "function" and weapon:IsGrenadeCooking() then isCooking = true end
+            if not isCooking and type(weapon.IsCookingGrenade) == "function" and weapon:IsCookingGrenade() then isCooking = true end
+        end)
+    end
+    if not isCooking then
+        pcall(function()
+            if type(player.IsPinPulled) == "function" and player:IsPinPulled() then isCooking = true end
+            if not isCooking and type(player.IsGrenadeCooking) == "function" and player:IsGrenadeCooking() then isCooking = true end
+            if not isCooking and type(player.IsCookingGrenade) == "function" and player:IsCookingGrenade() then isCooking = true end
+        end)
+    end
+
+    -- Pawn state: fire hold / weapon charge (grenade haath me hai tabhi yahan aate hain)
+    if not isCooking then
+        local stateFire = false
+        pcall(function()
+            if EPawnState and type(player.HasState) == "function" then
+                local sFire = EPawnState.GunFire
+                local sCharge = EPawnState.WeaponAccPrepare
+                if (sFire ~= nil and player:HasState(sFire))
+                    or (sCharge ~= nil and player:HasState(sCharge)) then
+                    stateFire = true
+                end
+            end
+        end)
+        if stateFire then
+            st.stateFireSince = st.stateFireSince or now
+            if (now - st.stateFireSince) >= 0.15 then isCooking = true end
+        else
+            st.stateFireSince = nil
+        end
+    else
+        st.stateFireSince = nil
+    end
+
+    if not isCooking then
+        isCooking = _G.GrenadeActorCookingNear(player, weapon)
+    end
+
+    -- 0.25s grace: scan/flag ek frame na mile to timer reset na ho
+    if isCooking then
+        st.lastCookSeen = now
+    elseif st.cooking and st.lastCookSeen and (now - st.lastCookSeen) <= 0.25 then
+        isCooking = true
+    end
+
+    return isCooking
+end
+
 _G.GrenadeAimTick = function()
     local ok, handled = pcall(function()
         if not _G.GTLMODConfig.GrenadeAim then return false end
@@ -2689,71 +2993,13 @@ _G.GrenadeAimTick = function()
             return false
         end
 
-        -- Cooking detect: fire hold / pin nikalna
-        local function onFlag(v) return v == true or v == 1 end
-        local wepMgr = player.WeaponManagerComponent
-        local isCooking = onFlag(player.bIsWeaponFiring)
-            or onFlag(player.bIsGrenadeFiring)
-            or onFlag(player.bIsFiringGrenade)
-            or onFlag(player.bIsCookingGrenade)
-            or onFlag(player.bIsGrenadeCooking)
-            or onFlag(player.bIsCooking)
-            or onFlag(player.bIsPinPulled)
-            or onFlag(player.bPinPulled)
-            or onFlag(player.bIsThrowGrenade)
-            or onFlag(player.bIsThrowingGrenade)
-            or onFlag(player.bIsGrenadeThrow)
-            or (slua.isValid(wepMgr) and onFlag(wepMgr.bIsWeaponFiring))
-            or onFlag(wepMgr and wepMgr.bIsCooking)
-            or onFlag(weapon.bIsWeaponFiring)
-            or onFlag(weapon.bIsGrenadeFiring)
-            or onFlag(weapon.bIsFiringGrenade)
-            or onFlag(weapon.bIsCooking)
-            or onFlag(weapon.bIsCookingGrenade)
-            or onFlag(weapon.bIsGrenadeCooking)
-            or onFlag(weapon.bIsPinPulled)
-            or onFlag(weapon.bPinPulled)
-            or onFlag(weapon.bIsThrowGrenade)
-            or onFlag(weapon.bIsThrowingGrenade)
-
-        if not isCooking then
-            pcall(function()
-                if type(weapon.IsPinPulled) == "function" and weapon:IsPinPulled() then isCooking = true end
-            end)
-        end
-        if not isCooking then
-            pcall(function()
-                if type(player.IsPinPulled) == "function" and player:IsPinPulled() then isCooking = true end
-            end)
-        end
-        if not isCooking then
-            pcall(function()
-                if type(weapon.IsCooking) == "function" and weapon:IsCooking() then isCooking = true end
-            end)
-        end
-        if not isCooking then
-            pcall(function()
-                if type(weapon.IsGrenadeCooking) == "function" and weapon:IsGrenadeCooking() then isCooking = true end
-            end)
-        end
-        if not isCooking then
-            pcall(function()
-                if type(player.IsGrenadeCooking) == "function" and player:IsGrenadeCooking() then isCooking = true end
-            end)
-        end
-        if not isCooking then
-            pcall(function()
-                if type(player.IsCookingGrenade) == "function" and player:IsCookingGrenade() then isCooking = true end
-            end)
-        end
-        if not isCooking and slua.isValid(wepMgr) then
-            pcall(function()
-                if type(wepMgr.IsGrenadeCooking) == "function" and wepMgr:IsGrenadeCooking() then isCooking = true end
-            end)
-        end
+        -- Cooking detect: pin / fire state / held grenade actor
+        local isCooking = _G.GrenadeCookingCheck(player, weapon, pc)
 
         if not isCooking then
             _G.GrenadeAimState.cooking = false
+            _G.GrenadeAimState.stateFireSince = nil
+            _G.GrenadeAimState.lastCookSeen = nil
             showStatus("[GRENADE] AIM READY - HOLD FIRE", {R=200, G=200, B=200, A=255}, 1.0)
             return false
         end
