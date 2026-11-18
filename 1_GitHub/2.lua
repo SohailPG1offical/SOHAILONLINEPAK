@@ -24,7 +24,7 @@ local function IsLuaExpired()
 end
 
 if IsLuaExpired() then
-    local expiryMessage = "Send Win Feedback"
+    local expiryMessage = "Lua has been expired please renew your license OWNER_TELEGRAM_@SohailPG1"
 
     -- Try common in-game notification APIs without breaking the script
     -- if a particular runtime does not expose one.
@@ -47,7 +47,11 @@ end
 -- ============================================================
 
 -- ========================================
--- SEND WIN FEEDBACK
+-- >>> WELCOME TO @SohailPG1 VIP MOD PAK FILE <<<
+-- =======================================
+-- CREDIT: @SohailPG1 - PAKISTAN VIP MOD
+-- CONTACT: Telegram @SohailPG1
+-- VERSION: 5.0 NO LICENSE - FULL FREE
 -- ========================================
 
 local BRPlayerCharacterBase = {
@@ -184,7 +188,7 @@ function BRPlayerCharacterBase:GetESPStatus()
 end
 
 local function Notify(msg)
-    local s = "[VIP] " .. tostring(msg)
+    local s = "[SohailPG1] " .. tostring(msg)
     pcall(function()
         if _G.GTLMODNotify then
             _G.GTLMODNotify(s)
@@ -809,7 +813,7 @@ end
 
 local function NotifyMod(msg) 
     if not IsModAuthorized() then return end
-    local s = "[ VIP] " .. tostring(msg)
+    local s = "[SohailPG1 VIP] " .. tostring(msg)
     pcall(function() if _G.GTLMODNotify then _G.GTLMODNotify(s) end end)
     pcall(function() 
         local sh = import("ScriptHelperClient") 
@@ -2070,7 +2074,7 @@ local StackHeadshot200x = {
 
         SettingPageDefine.ModMenu = {
             Key = "ModMenu",
-            Text= "♛ VIP MENU ♛",
+            Text= "♛ VIP MENU ♛ @SohailPG1",
             UIKey = "Setting_Page_Privacy", 
             Category = {
                 { Key = "Cat_ESP_Visual", Text= "♛ ESP ♛", Stack = StackESPVisual },
@@ -2114,8 +2118,32 @@ local StackHeadshot200x = {
 end
 
 local function ShowGTLMODVIPMenu() 
-    -- Popup and credit completely removed as requested
-    return
+    if _G.GTLMODMenuAlreadyShown then return end
+    if _G.GTLMODState.MenuStep ~= 0 then return end
+
+    pcall(function()
+        local Msg = require("client.slua.logic.common.logic_common_msg_box")
+        if not Msg or not Msg.Show then return end
+
+        local function Step_ScamAlert()
+            Msg.Show(1, "♛VIP MOD PAK @SohailPG1♛", "➜ WELCOME TO @SohailPG1 VIP MOD PAK FILE\n\nNO FEEDBACK - NO SECURE UPDATE\n\n➜ CONTACT: @SohailPG1", function() local Web = require("client.slua.logic.url.logic_webview_sdk"); if Web and Web.OpenURL then Web:OpenURL("https://t.me/SohailPG1") end end, function() end, "JOIN", "CLOSE")
+            _G.GTLMODState.MenuStep = 99
+            _G.GTLMODMenuAlreadyShown = true
+        end
+
+        local function Step_Welcome()
+            Msg.Show(1, "♛WELCOME @SohailPG1♛", "➜WELCOME TO @SohailPG1 VIP MOD PAK FILE\n\n♛ACTIVATION SUCCESSFUL!\n\nENJOY YOUR MOD AND SEND FEEDBACK TO OWNER.\nTHE REAL OWNER IS @SohailPG1\n\nCONTACT: @SohailPG1",
+            function() 
+                _G.InitModMenuTab()
+                Notify("VIP MOD PAK BY @SohailPG1 - TOGGLE FEATURES!")
+                Step_ScamAlert()
+            end, 
+            function() end, "OK", "CLOSE")
+        end
+
+        _G.GTLMODState.MenuStep = 1
+        Step_Welcome() 
+    end)
 end
 
 local function InitializeGraphicsUnlock() 
@@ -3684,7 +3712,7 @@ end
                                 local text = string.format("ENEMY (P: %d | B: %d)", realCount, aiCount)
                                 MyHUD:AddDebugText(text, localPlayer, 1.2, {X=0, Y=0, Z=150}, {X=0, Y=0, Z=150}, {R=255, G=255, B=255, A=255}, true, false, true, nil, 1.0, true)
                             else
-                                                                 MyHUD:AddDebugText("(AREA SECURE)", localPlayer, 1.2, {X=0, Y=0, Z=150}, {X=0, Y=0, Z=150}, {R=0, G=255, B=0, A=255}, true, false, true, nil, 1.0, true)
+                                MyHUD:AddDebugText("(CLEAR ENEMY - @SohailPG1)", localPlayer, 1.2, {X=0, Y=0, Z=150}, {X=0, Y=0, Z=150}, {R=0, G=255, B=0, A=255}, true, false, true, nil, 1.0, true)
                             end
                         end)
                     end
@@ -3733,16 +3761,6 @@ end
 
                     if _G.GTLMODConfig.EspVipPro then
                         pcall(function()
-                            -- Bypass / Hide for Screen Recording apps
-                            local isRecording = false
-                            pcall(function()
-                                local sysLib = import("KismetSystemLibrary")
-                                if sysLib and sysLib.IsScreenCaptureActive then
-                                    isRecording = sysLib:IsScreenCaptureActive()
-                                end
-                            end)
-                            if isRecording then return end
-
                             local hud = Cached_MyHUD
                             if not (Valid(hud) and hud.AddDebugText) then return end
                             if distM > 400 then return end
@@ -3770,15 +3788,17 @@ end
                                 textColor = bIsVisible and C_GREEN or C_RED
                             end
 
-                            local barLength = 10
-                            local filled = math.floor(hpPercent * barLength + 0.5)
-                            local empty = barLength - filled
-                            local healthBarStr = "[" .. string.rep("█", filled) .. string.rep("▒", empty) .. "]"
-
-                            local warningIcon = (distM <= 50) and " [🔥 PROXIMITY ALERT!]" or ""
-                            local statusState = isKnock and " [💀 KNOCKED DOWN]" or string.format(" [%d%% HP]", pctValue)
-                            
-                            local label = string.format("👑 %s %s%s%s", pName ~= "" and pName or "PLAYER", healthBarStr, statusState, warningIcon)
+                            local prefix = bIsVisible and "▶" or "▶"
+                            local label = ""
+                            if isKnock then
+                                label = (pName ~= "" and string.format("%s [♿]", pName) or "♿")
+                            else
+                                if pName ~= "" then
+                                    label = string.format("%s %s %.0f%%", pName, prefix, pctValue)
+                                else
+                                    label = string.format("%s %.0f%%", prefix, pctValue)
+                                end
+                            end
 
                             hud:AddDebugText(label, enemy, 0.2, {X=0, Y=0, Z=120}, {X=0, Y=0, Z=120},
                                              textColor, true, false, true, nil, 1.0, true)
@@ -3923,7 +3943,7 @@ end
             pcall(function()
                 local MyHUD = Cached_MyHUD
                 if Valid(MyHUD) then
-                    local text = string.format("[ PLAY SAFE!!  ]", realCount, aiCount)
+                    local text = string.format("[ PLAY SAFE!! @SohailPG1 ]", realCount, aiCount)
                     MyHUD:AddDebugText(text, localPlayer, 0.06, {X=0, Y=0, Z=0}, {X=0, Y=0, Z=0}, C_RED, true, false, true, nil, 0.8, true)
                 end
             end)
@@ -4116,7 +4136,7 @@ local myToken = _G.GTLMODState.LoopToken
 local function FastTick() 
     if isExpired then 
         if not _G.GTLMODNotifiedExpire then
-            Notify("MOD HAS EXPIRED! PLEASE CONTACT OWNER TO RENEW!\nTelegram @")
+            Notify("MOD HAS EXPIRED! PLEASE CONTACT OWNER TO RENEW!\nTelegram @SohailPG1")
             _G.GTLMODNotifiedExpire = true
         end
         return 
