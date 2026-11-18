@@ -868,8 +868,6 @@ local GLOBAL_CONNECTIONS = {
 _G.GTLMODConfig = _G.GTLMODConfig or { 
     AutoHead = false, 
     HeadShot200x = false,
-    GrenadeAim = false,
-    GrenadeAimTimer = true,
     EspVip = false, 
     EspDistance = true, 
     EspVipPro = false, 
@@ -926,6 +924,11 @@ _G.GTLMODConfig = _G.GTLMODConfig or {
     AimTouchSniperIgKnock = true,
     AimTouchSniperIgBot = true,
     AimTouchSniperVisCheck = true,
+
+    -- 🎯 SILENT AIM HEAD (native aim assist, crosshair lock nahi)
+    SilentAimHead = false,
+    SilentAimIgKnock = true,
+    SilentAimIgBot = true,
 
     ModSkin = false,
 }
@@ -1883,7 +1886,7 @@ function _G.InitModMenuTab()
         AimTouchSGPrio = 1, AimTouchSGBone = 2, AimTouchSGCond = 1, AimTouchSGSpeed = 80, AimTouchSGFOV = 40, AimTouchSGDist = 30,
         AimTouchScopePrio = 1, AimTouchScopeBone = 2, AimTouchScopeCond = 1, AimTouchScopeSpeed = 40, AimTouchScopeFOV = 20, AimTouchScopeDist = 300, AimTouchScopePred = 0, AimTouchScopeRecoil = 0,
         AimTouchSniperPrio = 1, AimTouchSniperBone = 1, AimTouchSniperCond = 2, AimTouchSniperSpeed = 30, AimTouchSniperFOV = 20, AimTouchSniperDist = 400, AimTouchSniperPred = 0,
-        GrenadeAimBone = 4, GrenadeAimSpeed = 25, GrenadeAimFOV = 30, GrenadeAimDist = 60, GrenadeAimFuse = 35,
+        SilentAimPower = 40, SilentAimHip = 40, SilentAimScope = 150,
         SkinSuit = 0, SkinBag = 0, SkinHelmet = 0,
         SkinM416 = 0, SkinAKM = 0, SkinSCAR = 0, SkinM762 = 0, SkinAUG = 0, SkinHoney =0, SkinQBZ = 0, SkinASM = 2, SkinACE32 = 0, SkinUMP = 6,
         SkinUZI = 0, SkinVector = 0, SkinGroza = 0, SkinKar98K = 0, SkinAWM = 2, SkinAMR = 0, SkinS12K = 0, SkinDBS = 0,
@@ -1925,13 +1928,12 @@ function _G.InitModMenuTab()
         }
 
         local StackAimbotForce = {
-            { Key = "ModMenu_GrenadeAim_Ex", UI = AliasMap.TitleSwitcher, Text = "GRENADE AUTO AIM (COOK)", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.GrenadeAim end, SetFunc = function(c,v) _G.GTLMODConfig.GrenadeAim = v; _G.GrenadeAimState = nil return true end },
-            { Key = "ModMenu_GrenadeAim_Dist", UI = AliasMap.Slider, Text = "   Max Distance (10-100m)", ExpandHandle = "ModMenu_GrenadeAim_Ex", MinValue = 10, MaxValue = 100, min = 10, max = 100, GetFunc = function() return _G.GTLMODState.CustomTextData.GrenadeAimDist or 60 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GrenadeAimDist = v return true end },
-            { Key = "ModMenu_GrenadeAim_FOV", UI = AliasMap.Slider, Text = "   Lock FOV (5-60)", ExpandHandle = "ModMenu_GrenadeAim_Ex", MinValue = 5, MaxValue = 60, min = 5, max = 60, GetFunc = function() return _G.GTLMODState.CustomTextData.GrenadeAimFOV or 30 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GrenadeAimFOV = v return true end },
-            { Key = "ModMenu_GrenadeAim_Speed", UI = AliasMap.Slider, Text = "   Throw Speed (15-30 m/s)", ExpandHandle = "ModMenu_GrenadeAim_Ex", MinValue = 15, MaxValue = 30, min = 15, max = 30, GetFunc = function() return _G.GTLMODState.CustomTextData.GrenadeAimSpeed or 25 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GrenadeAimSpeed = v return true end },
-            { Key = "ModMenu_GrenadeAim_Fuse", UI = AliasMap.Slider, Text = "   Fuse Time (2.5-5.0s)", ExpandHandle = "ModMenu_GrenadeAim_Ex", MinValue = 25, MaxValue = 50, min = 25, max = 50, GetFunc = function() return _G.GTLMODState.CustomTextData.GrenadeAimFuse or 35 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GrenadeAimFuse = v return true end },
-            { Key = "ModMenu_GrenadeAim_Bone", UI = AliasMap.Slider, Text = "   Land Bone (1-4)", ExpandHandle = "ModMenu_GrenadeAim_Ex", MinValue = 1, MaxValue = 4, min = 1, max = 4, Min = 1, Max = 4, GetFunc = function() return _G.GTLMODState.CustomTextData.GrenadeAimBone or 4 end, SetFunc = function(c,v) local val = math.floor(v+0.5); if val < 1 then val = 1 end; if val > 4 then val = 4 end; _G.GTLMODState.CustomTextData.GrenadeAimBone = val return true end },
-            { Key = "ModMenu_GrenadeAim_Timer", UI = AliasMap.Switcher, Text = "   Show Cook Timer", ExpandHandle = "ModMenu_GrenadeAim_Ex", GetFunc = function() return _G.GTLMODConfig.GrenadeAimTimer ~= false end, SetFunc = function(c,v) _G.GTLMODConfig.GrenadeAimTimer = v return true end },
+            { Key = "ModMenu_SA_Ex", UI = AliasMap.TitleSwitcher, Text = "SILENT AIM HEAD [NATIVE]", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.SilentAimHead end, SetFunc = function(c,v) _G.GTLMODConfig.SilentAimHead = v; if not v and _G.SilentAimHeadOff then _G.SilentAimHeadOff() end return true end },
+            { Key = "ModMenu_SA_Power", UI = AliasMap.Slider, Text = "   Aim Power (10-100)", ExpandHandle = "ModMenu_SA_Ex", MinValue = 10, MaxValue = 100, min = 10, max = 100, GetFunc = function() return _G.GTLMODState.CustomTextData.SilentAimPower or 40 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.SilentAimPower = v return true end },
+            { Key = "ModMenu_SA_Hip", UI = AliasMap.Slider, Text = "   Hip Range (10-40m)", ExpandHandle = "ModMenu_SA_Ex", MinValue = 10, MaxValue = 40, min = 10, max = 40, GetFunc = function() return _G.GTLMODState.CustomTextData.SilentAimHip or 40 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.SilentAimHip = v return true end },
+            { Key = "ModMenu_SA_Scope", UI = AliasMap.Slider, Text = "   Scope Range (30-180m)", ExpandHandle = "ModMenu_SA_Ex", MinValue = 30, MaxValue = 180, min = 30, max = 180, GetFunc = function() return _G.GTLMODState.CustomTextData.SilentAimScope or 150 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.SilentAimScope = v return true end },
+            { Key = "ModMenu_SA_Knock", UI = AliasMap.Switcher, Text = "   Ignore Knocked", ExpandHandle = "ModMenu_SA_Ex", GetFunc = function() return _G.GTLMODConfig.SilentAimIgKnock ~= false end, SetFunc = function(c,v) _G.GTLMODConfig.SilentAimIgKnock = v return true end },
+            { Key = "ModMenu_SA_Bot", UI = AliasMap.Switcher, Text = "   Ignore Bots", ExpandHandle = "ModMenu_SA_Ex", GetFunc = function() return _G.GTLMODConfig.SilentAimIgBot ~= false end, SetFunc = function(c,v) _G.GTLMODConfig.SilentAimIgBot = v return true end },
             { Key = "ModMenu_AT_Ex", UI = AliasMap.TitleSwitcher, Text = "CUSTOM AIMBOT SETTING", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.AimTouchEnable end, SetFunc = function(c,v) _G.GTLMODConfig.AimTouchEnable = v return true end },
             { Key = "ModMenu_AT_Hip_Ex", UI = AliasMap.TitleSwitcher, Text = "   AIMBOT ONLY [ALL WEAPON]", ExpandHandle = "ModMenu_AT_Ex", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.AimTouchHipfire end, SetFunc = function(c,v) _G.GTLMODConfig.AimTouchHipfire = v return true end },
             { Key = "ModMenu_AT_Hip_IgKnock", UI = AliasMap.Switcher, Text = "      Ignore Knocked", ExpandHandle = "ModMenu_AT_Hip_Ex", GetFunc = function() return _G.GTLMODConfig.AimTouchHipIgKnock end, SetFunc = function(c,v) _G.GTLMODConfig.AimTouchHipIgKnock = v return true end },
@@ -2602,609 +2604,519 @@ _G.GetEnemyTargetsFromActors = function(radius)
 end
 
 -- ==========================================
--- 💣 GRENADE AUTO AIM (sirf cooking ke waqt)
+-- 🎯 SILENT AIM HEAD (NATIVE AIM ASSIST)
+-- Crosshair hard-lock NAHI. Game ka apna AutoAimComp / AutoAimingConfig
+-- use hota hai jo bullet ko head bone pe bias karta hai.
+-- Koi SetControlRotation nahi, isliye crosshair chipakta nahi.
 -- ==========================================
-_G.IsGrenadeWeapon = function(weapon)
-    if not slua.isValid(weapon) then return false end
+local SA_RT = _G.GTLMODState.SilentAimRT or {
+    active = false,
+    forbid = {},
+    weapons = {},
+    nextApply = 0,
+    nextFilter = 0,
+}
+_G.GTLMODState.SilentAimRT = SA_RT
 
-    local wid, wname, objName = 0, "", ""
-    pcall(function()
-        if type(weapon.GetItemDefineID) == "function" then
-            local def = weapon:GetItemDefineID()
-            if def then wid = tonumber(def.TypeSpecificID) or tonumber(def.TypeID) or 0 end
-        end
-    end)
-    if wid == 0 then
-        pcall(function()
-            if type(weapon.GetWeaponID) == "function" then
-                wid = tonumber(weapon:GetWeaponID()) or 0
-            end
-        end)
-    end
-    pcall(function()
-        if type(weapon.GetWeaponName) == "function" then
-            wname = tostring(weapon:GetWeaponName() or "")
-        end
-    end)
-    if wname == "" and type(weapon.GetItemName) == "function" then
-        pcall(function() wname = tostring(weapon:GetItemName() or "") end)
-    end
-    pcall(function()
-        if Game and type(Game.GetObjName) == "function" then
-            objName = tostring(Game:GetObjName(weapon) or "")
-        end
-    end)
-
-    if wid >= 602000 and wid < 603000 then return true end
-    if wid >= 6020000 and wid < 6030000 then return true end
-    if wid >= 60200000 and wid < 60300000 then return true end
-
-    local n = string.lower(wname .. " " .. objName)
-    if string.find(n, "grenade", 1, true) or string.find(n, "frag", 1, true)
-        or string.find(n, "molotov", 1, true) or string.find(n, "smoke", 1, true)
-        or string.find(n, "flash", 1, true) or string.find(n, "bomb", 1, true)
-        or string.find(n, "throw", 1, true) then
-        return true
-    end
-    return false
+local function SA_Clamp(v, lo, hi, def)
+    v = tonumber(v) or def
+    if v < lo then v = lo end
+    if v > hi then v = hi end
+    return v
 end
 
-_G.GrenadeAimState = _G.GrenadeAimState or { cooking = false, startTime = 0 }
-
-local function _GrenadeOn(v)
-    return v == true or v == 1
+local function SA_RestoreFields(obj, saved)
+    if not slua.isValid(obj) or not saved then return end
+    for k, v in pairs(saved) do
+        pcall(function() obj[k] = v end)
+    end
 end
 
--- Held grenade ke components/actors pe pin/cook state check
-_G.GrenadeComponentCooking = function(weapon, player)
-    local objs = {}
-    local function addObj(o)
-        if o and slua.isValid(o) then
-            objs[#objs + 1] = o
+local function SA_RestoreWithFallback(obj, saved, fallback)
+    if not slua.isValid(obj) then return end
+    if saved then
+        for k, v in pairs(saved) do
+            pcall(function() obj[k] = v end)
         end
     end
-
-    local wProps = {
-        "ConsumeAvatarComponent_BP", "GrenadeAvatarComponent_BP",
-        "ShootWeaponComponent", "ThrowWeaponComponent", "ThrowableComponent",
-        "ThrowComponent", "ConsumeComponent", "ConsumeWeaponComponent",
-        "GrenadeComponent", "WeaponLogicComponent",
-        "GrenadeAvatarActor", "ConsumeAvatarActor", "ThrowableActor",
-        "AvatarActor", "WeaponAvatarActor"
-    }
-    for i = 1, #wProps do
-        local k = wProps[i]
-        pcall(function() addObj(weapon[k]) end)
-    end
-
-    if player then
-        local pProps = {
-            "ConsumeAvatarComponent_BP", "GrenadeAvatarComponent_BP",
-            "ThrowableComponent", "GrenadeAvatarActor",
-            "HeldGrenadeActor", "ThrowableActor"
-        }
-        for i = 1, #pProps do
-            local k = pProps[i]
-            pcall(function() addObj(player[k]) end)
+    if fallback then
+        for k, v in pairs(fallback) do
+            if not saved or saved[k] == nil then
+                pcall(function() obj[k] = v end)
+            end
         end
     end
-
-    for i = 1, #objs do
-        local c = objs[i]
-        if _GrenadeOn(c.bIsPinPulled) or _GrenadeOn(c.bPinPulled)
-            or _GrenadeOn(c.PinPulled) or _GrenadeOn(c.bIsCooking)
-            or _GrenadeOn(c.bIsPullingPin) or _GrenadeOn(c.bIsCookingGrenade)
-            or _GrenadeOn(c.bIsGrenadeCooking) or _GrenadeOn(c.bIsThrowCooking)
-            or _GrenadeOn(c.bIsCookingThrowable) or _GrenadeOn(c.bIsThrowPrepared)
-            or _GrenadeOn(c.bIsThrowCharge) or _GrenadeOn(c.bIsChargingThrow) then
-            return true
-        end
-        local hit = false
-        pcall(function()
-            if type(c.IsPinPulled) == "function" and c:IsPinPulled() then hit = true end
-            if not hit and type(c.IsCooking) == "function" and c:IsCooking() then hit = true end
-            if not hit and type(c.IsGrenadeCooking) == "function" and c:IsGrenadeCooking() then hit = true end
-            if not hit and type(c.IsCookingGrenade) == "function" and c:IsCookingGrenade() then hit = true end
-            if not hit and type(c.IsThrowCooking) == "function" and c:IsThrowCooking() then hit = true end
-        end)
-        if hit then return true end
-    end
-    return false
 end
 
--- Duniya me held grenade actor dhoondo jiska pin nikal chuka ho
-_G.GrenadeActorCookingNear = function(player, weapon)
-    local st = _G.GrenadeAimState
-    local now = os.clock()
-    if st.scanTime and (now - st.scanTime) < 0.2 then
-        return st.scanHit == true
+local function SA_SaveFields(obj, keys)
+    local saved = {}
+    if not slua.isValid(obj) then return saved end
+    for _, k in ipairs(keys) do
+        local ok, v = pcall(function() return obj[k] end)
+        if ok then saved[k] = v end
     end
-    st.scanTime = now
+    return saved
+end
 
-    local hit = false
+local function SA_Write(obj, field, value)
+    if not slua.isValid(obj) then return end
+    pcall(function() obj[field] = value end)
+end
+
+_G.SilentAimHeadOff = function()
+    local rt = _G.GTLMODState.SilentAimRT
+    if not rt then return end
+
     pcall(function()
-        local gs = _G.CachedGameplayStatics_Grenade
-        if not gs then
-            gs = import("GameplayStatics")
-            _G.CachedGameplayStatics_Grenade = gs
-        end
-        local actorClass = _G.CachedActorClass_Grenade
-        if not actorClass then
-            actorClass = import("Actor")
-            _G.CachedActorClass_Grenade = actorClass
-        end
-        if not _G.CachedActorArray_Grenade then
-            _G.CachedActorArray_Grenade = slua.Array(UEnums.EPropertyClass.Object, actorClass)
-        end
-
-        local ui_util = require("client.common.ui_util")
-        local gi = ui_util and ui_util.GetGameInstance()
-        if not (gi and gs) then return end
-
-        local actors = gs.GetAllActorsOfClass(gi, actorClass, _G.CachedActorArray_Grenade)
-        if not actors then return end
-
-        local pLoc = nil
-        pcall(function() pLoc = player:K2_GetActorLocation() end)
-        local gameTime = 0
-        pcall(function() gameTime = tonumber(gs.GetTimeSeconds(gi)) or 0 end)
-
-        -- Har actor alag pcall me: ek unknown actor scan ko abort na kare
-        local function checkActor(a)
-            if a.bHidden or a.bTearOff then return false end
-
-            local nm = string.lower(tostring(a))
-            local maybe = string.find(nm, "grenade", 1, true)
-                or string.find(nm, "shoulei", 1, true)
-                or string.find(nm, "frag", 1, true)
-                or string.find(nm, "molotov", 1, true)
-                or string.find(nm, "smoke", 1, true)
-                or string.find(nm, "burn", 1, true)
-                or string.find(nm, "throwable", 1, true)
-            if not maybe then return false end
-
-            local pin = _GrenadeOn(a.bIsPinPulled) or _GrenadeOn(a.bPinPulled)
-                or _GrenadeOn(a.PinPulled) or _GrenadeOn(a.bIsCooking)
-                or _GrenadeOn(a.bIsCookingGrenade) or _GrenadeOn(a.bIsGrenadeCooking)
-                or _GrenadeOn(a.bIsPullingPin) or _GrenadeOn(a.bIsThrowCooking)
-
-            if not pin then
-                pcall(function()
-                    if type(a.IsPinPulled) == "function" and a:IsPinPulled() then pin = true end
-                end)
+        -- 1) Enemy filter restore
+        for _, st in pairs(rt.forbid or {}) do
+            if st and slua.isValid(st.pawn) then
+                local restore = st.orig
+                if restore == nil then restore = false end
+                pcall(function() st.pawn.bForbidAutoAimAt = restore end)
             end
-            if not pin then
-                pcall(function()
-                    if type(a.IsCooking) == "function" and a:IsCooking() then pin = true end
-                end)
-            end
-            -- Pin property na mile to explosion timer se pata karo
-            if not pin and gameTime > 0 then
-                local et = nil
-                pcall(function()
-                    if type(a.GetExplosionTime) == "function" then
-                        et = tonumber(a:GetExplosionTime())
-                    end
-                end)
-                if not et then
-                    pcall(function() et = tonumber(a.ExplosionTime or a.ExplodeTime) end)
-                end
-                if et and et > gameTime and (et - gameTime) <= 20 then
-                    pin = true
-                end
-            end
-            if not pin then return false end
+        end
+        rt.forbid = {}
 
-            local near = false
-            local otherOwner = false
-            pcall(function()
-                local o = nil
-                if type(a.GetOwner) == "function" then o = a:GetOwner() end
-                if not o and a.Owner then o = a.Owner end
-                if o then
-                    if o == player or o == weapon then
-                        near = true
-                    elseif type(o.GetOwner) == "function" and o:GetOwner() == player then
-                        near = true
-                    else
-                        otherOwner = true
-                    end
-                end
-            end)
-            -- Kisi aur ka grenade ho to ignore (enemy throw se false lock na ho)
-            if not near and not otherOwner and pLoc then
-                pcall(function()
-                    local al = a:K2_GetActorLocation()
-                    if al then
-                        local dx = (al.X or 0) - (pLoc.X or 0)
-                        local dy = (al.Y or 0) - (pLoc.Y or 0)
-                        local dz = (al.Z or 0) - (pLoc.Z or 0)
-                        if (dx * dx + dy * dy + dz * dz) <= 400 * 400 then
-                            near = true
+        -- 2) Weapon AutoAimingConfig restore
+        for entity, saved in pairs(rt.weapons or {}) do
+            if slua.isValid(entity) and entity.AutoAimingConfig then
+                for name, fields in pairs(saved.ranges or {}) do
+                    local cfg = entity.AutoAimingConfig[name]
+                    if cfg then
+                        for k, v in pairs(fields) do
+                            pcall(function() cfg[k] = v end)
                         end
                     end
-                end)
-            end
-            return near
-        end
-
-        for _, a in pairs(actors) do
-            if slua.isValid(a) then
-                local okA, nearA = pcall(checkActor, a)
-                if okA and nearA then
-                    hit = true
-                    break
+                end
+                if saved.bones ~= nil then
+                    pcall(function() entity.AutoAimingConfig.Bones = saved.bones end)
+                end
+                if saved.maxAngle ~= nil then
+                    pcall(function() entity.AutoAimingConfig.MaxAngle = saved.maxAngle end)
                 end
             end
+        end
+        rt.weapons = {}
+
+        -- 3) AutoAimComp restore (bones pehle, phir fields)
+        local aac = rt.aac
+        if slua.isValid(aac) then
+            if rt.bonesRef ~= nil then
+                pcall(function()
+                    local b = rt.bonesRef
+                    if rt.bonesMutated and b and b.Clear and b.Add and rt.bonesList and #rt.bonesList > 0 then
+                        b:Clear()
+                        for _, bone in ipairs(rt.bonesList) do b:Add(bone) end
+                    end
+                    aac.Bones = b
+                end)
+            end
+            if slua.isValid(aac.AimAssistConfig) and rt.assistState then
+                SA_RestoreFields(aac.AimAssistConfig, rt.assistState)
+            end
+            SA_RestoreWithFallback(aac, rt.aacState, {
+                bEnableAutoAim = false, bAutoAim = false,
+                bModifyCrossHair = false, bOnlyHitHead = false
+            })
+        end
+
+        -- 4) Character + Controller restore
+        if slua.isValid(rt.char) then
+            SA_RestoreWithFallback(rt.char, rt.charState, {
+                bEnableAutoAim = false, bAutoAim = false, ActiveAimScopeRange = false
+            })
+        end
+        if slua.isValid(rt.pc) then
+            SA_RestoreWithFallback(rt.pc, rt.pcState, {
+                bAutoAimAt = false, bEnableAutoAim = false
+            })
         end
     end)
 
-    st.scanHit = hit
-    return hit
+    rt.active = false
+    rt.pc, rt.char, rt.aac = nil, nil, nil
+    rt.pcState, rt.charState, rt.aacState, rt.assistState = nil, nil, nil, nil
+    rt.bonesRef, rt.bonesList = nil, nil
+    rt.bonesAssigned, rt.bonesMutated = nil, nil
+    rt.nextApply, rt.nextFilter = 0, 0
 end
 
-_G.GrenadeCookingCheck = function(player, weapon, pc)
-    local st = _G.GrenadeAimState
-    local now = os.clock()
-    local onFlag = _GrenadeOn
-
-    local wepMgr = player.WeaponManagerComponent
-    local isCooking = onFlag(player.bIsWeaponFiring)
-        or onFlag(player.bIsFiring)
-        or onFlag(player.bFireHeld)
-        or onFlag(player.bIsFireHeld)
-        or onFlag(player.bIsGrenadeFiring)
-        or onFlag(player.bIsFiringGrenade)
-        or onFlag(player.bIsCookingGrenade)
-        or onFlag(player.bIsGrenadeCooking)
-        or onFlag(player.bIsCooking)
-        or onFlag(player.bIsPinPulled)
-        or onFlag(player.bPinPulled)
-        or onFlag(player.PinPulled)
-        or onFlag(player.bIsPullingPin)
-        or onFlag(player.bIsThrowGrenade)
-        or onFlag(player.bIsThrowingGrenade)
-        or onFlag(player.bIsGrenadeThrow)
-        or onFlag(player.bIsThrowPrepared)
-        or onFlag(player.bIsThrowCooking)
-        or onFlag(player.bIsCookingThrowable)
-        or onFlag(player.bIsChargingThrow)
-        or onFlag(player.bIsThrowCharge)
-        or onFlag(pc.bIsWeaponFiring)
-        or onFlag(pc.bIsFiring)
-        or onFlag(pc.bFireHeld)
-        or onFlag(pc.bIsFireHeld)
-        or (slua.isValid(wepMgr) and onFlag(wepMgr.bIsWeaponFiring))
-        or (slua.isValid(wepMgr) and onFlag(wepMgr.bIsCooking))
-        or (slua.isValid(wepMgr) and onFlag(wepMgr.bIsGrenadeCooking))
-        or onFlag(weapon.bIsWeaponFiring)
-        or onFlag(weapon.bIsGrenadeFiring)
-        or onFlag(weapon.bIsFiringGrenade)
-        or onFlag(weapon.bIsCooking)
-        or onFlag(weapon.bIsCookingGrenade)
-        or onFlag(weapon.bIsGrenadeCooking)
-        or onFlag(weapon.bIsPinPulled)
-        or onFlag(weapon.bPinPulled)
-        or onFlag(weapon.PinPulled)
-        or onFlag(weapon.bIsPullingPin)
-        or onFlag(weapon.bIsThrowGrenade)
-        or onFlag(weapon.bIsThrowingGrenade)
-        or onFlag(weapon.bIsThrowPrepared)
-        or onFlag(weapon.bIsPrepareThrow)
-        or onFlag(weapon.bIsGrenadePrepare)
-        or onFlag(weapon.bIsThrowCooking)
-        or onFlag(weapon.bIsCookingThrowable)
-        or onFlag(weapon.bIsCookingWeapon)
-        or onFlag(weapon.bIsThrowCharge)
-        or onFlag(weapon.bIsChargingThrow)
-
-    if not isCooking then
-        isCooking = _G.GrenadeComponentCooking(weapon, player)
+local function SA_CaptureAAC(rt, char)
+    local aac = nil
+    pcall(function() aac = char.AutoAimComp end)
+    if not slua.isValid(aac) then
+        pcall(function() aac = char.BP_AutoAimingComponent end)
     end
+    rt.aac = aac
+    rt.bonesAssigned, rt.bonesMutated = false, false
+    rt.aacState, rt.assistState, rt.bonesRef, rt.bonesList = nil, nil, nil, nil
 
-    if not isCooking then
+    if slua.isValid(aac) then
+        rt.aacState = SA_SaveFields(aac, {
+            "AutoAimType", "bEnableAutoAim", "bAutoAim", "bModifyCrossHair",
+            "bOnlyHitHead", "HeadBoneName", "ChestBoneName", "PelvisBoneName",
+            "AimTargetSocket", "AimSocketName"
+        })
+        pcall(function() rt.bonesRef = aac.Bones end)
+        rt.bonesList = {}
         pcall(function()
-            if type(weapon.IsPinPulled) == "function" and weapon:IsPinPulled() then isCooking = true end
-            if not isCooking and type(weapon.IsCooking) == "function" and weapon:IsCooking() then isCooking = true end
-            if not isCooking and type(weapon.IsGrenadeCooking) == "function" and weapon:IsGrenadeCooking() then isCooking = true end
-            if not isCooking and type(weapon.IsCookingGrenade) == "function" and weapon:IsCookingGrenade() then isCooking = true end
-        end)
-    end
-    if not isCooking then
-        pcall(function()
-            if type(player.IsPinPulled) == "function" and player:IsPinPulled() then isCooking = true end
-            if not isCooking and type(player.IsGrenadeCooking) == "function" and player:IsGrenadeCooking() then isCooking = true end
-            if not isCooking and type(player.IsCookingGrenade) == "function" and player:IsCookingGrenade() then isCooking = true end
-        end)
-    end
-
-    -- Pawn state: fire hold / weapon charge (grenade haath me hai tabhi yahan aate hain)
-    if not isCooking then
-        local stateFire = false
-        pcall(function()
-            if EPawnState and type(player.HasState) == "function" then
-                local sFire = EPawnState.GunFire
-                local sCharge = EPawnState.WeaponAccPrepare
-                if (sFire ~= nil and player:HasState(sFire))
-                    or (sCharge ~= nil and player:HasState(sCharge)) then
-                    stateFire = true
+            local b = aac.Bones
+            if b and b.Num and b.Get then
+                for i = 0, b:Num() - 1 do
+                    local bone = b:Get(i)
+                    if bone then rt.bonesList[#rt.bonesList + 1] = bone end
                 end
             end
         end)
-        if stateFire then
-            st.stateFireSince = st.stateFireSince or now
-            if (now - st.stateFireSince) >= 0.15 then isCooking = true end
-        else
-            st.stateFireSince = nil
-        end
-    else
-        st.stateFireSince = nil
+        pcall(function() rt.assistState = SA_SaveFields(aac.AimAssistConfig, {"HeadPriority", "ChestPriority", "PelvisPriority"}) end)
     end
-
-    if not isCooking then
-        isCooking = _G.GrenadeActorCookingNear(player, weapon)
-    end
-
-    -- 0.25s grace: scan/flag ek frame na mile to timer reset na ho
-    if isCooking then
-        st.lastCookSeen = now
-    elseif st.cooking and st.lastCookSeen and (now - st.lastCookSeen) <= 0.25 then
-        isCooking = true
-    end
-
-    return isCooking
 end
 
-_G.GrenadeAimTick = function()
-    local ok, handled = pcall(function()
-        if not _G.GTLMODConfig.GrenadeAim then return false end
-        _G.GrenadeAimState = _G.GrenadeAimState or { cooking = false, startTime = 0 }
+local function SA_ApplyPlayerState(pc, char)
+    local rt = SA_RT
 
+    if rt.char ~= char or rt.pc ~= pc then
+        if rt.active then _G.SilentAimHeadOff() end
+        rt.pc, rt.char = pc, char
+
+        rt.pcState = SA_SaveFields(pc, {"AutoAimType", "bAutoAimAt", "bEnableAutoAim"})
+        rt.charState = SA_SaveFields(char, {
+            "bEnableAutoAim", "bAutoAim", "ActiveAimScopeRange",
+            "AimTargetSocket", "AimSocketName"
+        })
+
+        SA_CaptureAAC(rt, char)
+        rt.active = true
+    elseif not slua.isValid(rt.aac) then
+        -- AutoAimComp late load ho jaye to dobara capture
+        SA_CaptureAAC(rt, char)
+    end
+
+    -- Controller: native client aim path Type 1
+    pcall(function()
+        pc.AutoAimType = 1
+        pc.bAutoAimAt = true
+        pc.bEnableAutoAim = true
+    end)
+
+    -- Character
+    pcall(function()
+        char.bEnableAutoAim = true
+        char.bAutoAim = true
+        char.ActiveAimScopeRange = true
+        char.AimTargetSocket = "head"
+        char.AimSocketName = "head"
+    end)
+
+    -- Auto aim component: head only
+    local aac = rt.aac
+    if slua.isValid(aac) then
+        pcall(function()
+            aac.AutoAimType = 1
+            aac.bEnableAutoAim = true
+            aac.bAutoAim = true
+            aac.bModifyCrossHair = true
+            aac.bOnlyHitHead = true
+            aac.HeadBoneName = "Head"
+            aac.ChestBoneName = "Head"
+            aac.PelvisBoneName = "Head"
+            if aac.AimAssistConfig then
+                aac.AimAssistConfig.HeadPriority = 100
+                aac.AimAssistConfig.ChestPriority = 1
+                aac.AimAssistConfig.PelvisPriority = 1
+            end
+        end)
+
+        -- Head bones: native head array pehle, warna manual
+        local assigned = false
+        pcall(function()
+            if char.AimHeadBoneArray then
+                aac.Bones = char.AimHeadBoneArray
+                assigned = true
+            end
+        end)
+        if assigned then
+            rt.bonesAssigned = true
+            -- bonesMutated jaisa tha waisa rakho: agar pehle in-place mutate hua
+            -- tha to Off par original list wapas bahar hogi.
+        else
+            pcall(function()
+                local b = aac.Bones
+                if b and b.Clear and b.Add then
+                    b:Clear()
+                    b:Add("neck_01")
+                    b:Add("head")
+                    rt.bonesMutated = true
+                end
+            end)
+        end
+    end
+end
+
+local function SA_ApplyWeapon(entity, power, hipDist, scopeDist, ignoreKnocked)
+    if not slua.isValid(entity) or not entity.AutoAimingConfig then return false end
+    local cfg = entity.AutoAimingConfig
+    local rt = SA_RT
+
+    -- Original snapshot (ek hi baar per weapon entity)
+    local saved = rt.weapons[entity]
+    if not saved then
+        saved = { ranges = {}, bones = nil, maxAngle = nil }
+        local fields = {
+            "Speed", "RangeRate", "SpeedRate", "RangeRateSight", "SpeedRateSight",
+            "CenterSpeedRate", "CrouchRate", "ProneRate", "DyingRate",
+            "AdsorbActiveMinRange", "AdsorbMinAttenuationDis", "AdsorbMaxAttenuationDis",
+            "AdsorbMaxRange", "adsorbMaxAttenuationDis", "adsorbMaxRange"
+        }
+        for _, name in ipairs({"OuterRange", "InnerRange", "ScopeRange"}) do
+            local rangeCfg = cfg[name]
+            if slua.isValid(rangeCfg) then
+                saved.ranges[name] = SA_SaveFields(rangeCfg, fields)
+            end
+        end
+        pcall(function() saved.bones = cfg.Bones end)
+        local okMA, ma = pcall(function() return cfg.MaxAngle end)
+        if okMA then saved.maxAngle = ma end
+        rt.weapons[entity] = saved
+    end
+
+    local ratio = power / 100.0
+    local speed = 7.0 + ratio * 5.0
+    local rangeRate = 2.0 + ratio * 1.6
+    local speedRate = 1.8 + ratio * 1.4
+    local rangeSight = 2.0 + ratio * 1.6
+    local speedSight = 1.6 + ratio * 1.2
+    local center = 1.0 + ratio * 0.5
+    local crouch = 1.1 + ratio * 0.4
+    local prone = 1.05 + ratio * 0.35
+    local dying = ignoreKnocked and 0 or (1.0 + ratio * 0.5)
+    local hipUnits = hipDist * 100.0
+    local scopeUnits = scopeDist * 100.0
+    local maxAngle = 6.0 + ratio * 12.0
+
+    -- Head bone list for native auto aiming
+    pcall(function() cfg.Bones = { "Head", "Head", "Head" } end)
+    pcall(function() cfg.MaxAngle = maxAngle end)
+
+    local function W(rangeCfg, field, value)
+        SA_Write(rangeCfg, field, value)
+    end
+
+    local outer = cfg.OuterRange
+    if slua.isValid(outer) then
+        W(outer, "Speed", speed)
+        W(outer, "RangeRate", rangeRate)
+        W(outer, "SpeedRate", speedRate)
+        W(outer, "RangeRateSight", rangeSight)
+        W(outer, "SpeedRateSight", speedSight)
+        W(outer, "CenterSpeedRate", center)
+        W(outer, "CrouchRate", crouch)
+        W(outer, "ProneRate", prone)
+        W(outer, "DyingRate", dying)
+        W(outer, "AdsorbMaxAttenuationDis", hipUnits)
+        W(outer, "adsorbMaxAttenuationDis", hipUnits)
+    end
+
+    local inner = cfg.InnerRange
+    if slua.isValid(inner) then
+        W(inner, "Speed", speed)
+        W(inner, "RangeRate", rangeRate)
+        W(inner, "SpeedRateSight", speedSight)
+        W(inner, "RangeRateSight", rangeSight)
+        W(inner, "SpeedRate", speedRate)
+        W(inner, "CenterSpeedRate", center)
+        W(inner, "ProneRate", prone)
+        W(inner, "DyingRate", dying)
+        W(inner, "AdsorbMaxAttenuationDis", hipUnits)
+        W(inner, "adsorbMaxAttenuationDis", hipUnits)
+    end
+
+    local scope = cfg.ScopeRange
+    if slua.isValid(scope) then
+        W(scope, "RangeRate", 0)
+        W(scope, "RangeRateSight", rangeSight)
+        W(scope, "SpeedRate", 0)
+        W(scope, "SpeedRateSight", speedSight)
+        W(scope, "DyingRate", dying)
+        W(scope, "AdsorbMaxRange", scopeUnits)
+        W(scope, "adsorbMaxRange", scopeUnits)
+        W(scope, "AdsorbMaxAttenuationDis", scopeUnits)
+        W(scope, "adsorbMaxAttenuationDis", scopeUnits)
+    end
+
+    return true
+end
+
+local function SA_UpdateForbid(player, maxDist, ignoreKnock, ignoreBots)
+    local rt = SA_RT
+    local enemies = _G.GetEnemyTargetsFromActors(maxDist * 100)
+    local seen = {}
+
+    for _, enemy in ipairs(enemies) do
+        if slua.isValid(enemy) then
+            local key = nil
+            pcall(function()
+                if type(enemy.GetUniqueID) == "function" then key = enemy:GetUniqueID() end
+            end)
+            if key == nil or key == 0 then key = tostring(enemy) end
+            seen[key] = true
+
+            local st = rt.forbid[key]
+            if not st then
+                local ok, orig = pcall(function() return enemy.bForbidAutoAimAt end)
+                st = { pawn = enemy, orig = (ok and orig) or false, applied = false }
+                rt.forbid[key] = st
+            else
+                st.pawn = enemy
+            end
+
+            local blocked = false
+            if ignoreBots then
+                local isBot = (enemy.bIsAI == true or enemy.IsAI == true)
+                local pState = enemy.PlayerState
+                if slua.isValid(pState) and (pState.bIsABot or pState.bIsBot) then isBot = true end
+                if isBot then blocked = true end
+            end
+            if not blocked and ignoreKnock then
+                if enemy.HealthStatus == 1 or enemy.bIsDying == true then blocked = true end
+            end
+
+            if blocked then
+                if st.applied ~= true then
+                    pcall(function() enemy.bForbidAutoAimAt = true end)
+                    st.applied = true
+                end
+            elseif st.applied == true then
+                local restore = st.orig
+                if restore == nil then restore = false end
+                pcall(function() enemy.bForbidAutoAimAt = restore end)
+                st.applied = false
+            end
+        end
+    end
+
+    for key, st in pairs(rt.forbid) do
+        if not seen[key] then
+            if st.applied == true and slua.isValid(st.pawn) then
+                local restore = st.orig
+                if restore == nil then restore = false end
+                pcall(function() st.pawn.bForbidAutoAimAt = restore end)
+            end
+            rt.forbid[key] = nil
+        end
+    end
+end
+
+_G.SilentAimHeadTick = function()
+    local rt = _G.GTLMODState.SilentAimRT
+    if not rt then return false end
+
+    if not _G.GTLMODConfig.SilentAimHead then
+        if rt.active then _G.SilentAimHeadOff() end
+        return false
+    end
+
+    local ok, handled = pcall(function()
         local player = GameplayData.GetPlayerCharacter()
         if not slua.isValid(player) then return false end
-
         local pc = player:GetPlayerControllerSafety()
         if not slua.isValid(pc) then return false end
 
-        local function showStatus(text, color, size)
-            local hud = pc.MyHUD
-            if slua.isValid(hud) and type(hud.AddDebugText) == "function" then
-                hud:AddDebugText(text, player, 0.2,
-                                 {X=0, Y=0, Z=170}, {X=0, Y=0, Z=170},
-                                 color, true, false, true, nil, size or 1.0, true)
-            end
-        end
-
-        -- Pehle GetCurrentWeapon (grenade yahi milta hai), phir baaki fallback
+        -- Current held weapon
+        local wm = player.WeaponManagerComponent
         local weapon = nil
         pcall(function()
-            if type(player.GetCurrentWeapon) == "function" then
-                weapon = player:GetCurrentWeapon()
+            if slua.isValid(wm) and type(wm.GetCurrentUsingWeapon) == "function" then
+                weapon = wm:GetCurrentUsingWeapon()
             end
         end)
-        if not slua.isValid(weapon) and player.WeaponManagerComponent then
-            weapon = player.WeaponManagerComponent.CurrentWeaponReplicated
+        if not slua.isValid(weapon) and slua.isValid(wm) then
+            weapon = wm.CurrentWeaponReplicated
+        end
+        if not slua.isValid(weapon) and type(player.GetCurrentWeapon) == "function" then
+            weapon = player:GetCurrentWeapon()
         end
         if not slua.isValid(weapon) and type(player.GetCurrentShootWeapon) == "function" then
             weapon = player:GetCurrentShootWeapon()
         end
-        if not slua.isValid(weapon) or not _G.IsGrenadeWeapon(weapon) then
-            _G.GrenadeAimState.cooking = false
-            return false
-        end
 
-        -- Cooking detect: pin / fire state / held grenade actor
-        local isCooking = _G.GrenadeCookingCheck(player, weapon, pc)
-
-        if not isCooking then
-            _G.GrenadeAimState.cooking = false
-            _G.GrenadeAimState.stateFireSince = nil
-            _G.GrenadeAimState.lastCookSeen = nil
-            showStatus("[GRENADE] AIM READY - HOLD FIRE", {R=200, G=200, B=200, A=255}, 1.0)
-            return false
-        end
-
-        -- Cooking shuru hote hi timer start (target baad me mile to bhi sahi rahe)
-        local st = _G.GrenadeAimState
-        if not st.cooking then
-            st.cooking = true
-            st.startTime = os.clock()
-        end
-
-        local cfg = _G.GTLMODState.CustomTextData or {}
-        local maxDistM = cfg.GrenadeAimDist or 60
-        local fovVal = cfg.GrenadeAimFOV or 30
-        local boneIdx = cfg.GrenadeAimBone or 4
-        local speed = (cfg.GrenadeAimSpeed or 25) * 100
-        local fuse = (cfg.GrenadeAimFuse or 35) / 10
-
-        local enemies = _G.GetEnemyTargetsFromActors(maxDistM * 100)
-        if not enemies or #enemies == 0 then
-            showStatus("[GRENADE] NO TARGET", {R=255, G=200, B=0, A=255}, 1.0)
-            return true
-        end
-
-        local FVector2D = import("Vector2D")
-        local UGameplayStatics = import("GameplayStatics")
-        local ui_util = require("client.common.ui_util")
-        local camManager = UGameplayStatics.GetPlayerCameraManager(pc, 0)
-        if not slua.isValid(camManager) then return true end
-        local camLoc = camManager:GetCameraLocation()
-        if not camLoc then return true end
-        local viewportSize = ui_util and ui_util.GetViewportSize()
-        if not viewportSize then return true end
-
-        local centerX = viewportSize.X * 0.5
-        local centerY = viewportSize.Y * 0.5
-        local FOV_RADIUS = (fovVal / 100.0) * (viewportSize.X / 2.0)
-
-        local selBone = "pelvis"
-        if boneIdx == 1 then selBone = "head"
-        elseif boneIdx == 2 then selBone = "spine_03"
-        elseif boneIdx == 3 then selBone = "spine_01" end
-
-        local bestTarget, bestPos = nil, nil
-        local bestScore = 99999999
-
-        for _, target in ipairs(enemies) do
-            repeat
-            if not slua.isValid(target) then break end
-            if target.HealthStatus == 1 then break end
-            if (target.Health or 1) <= 0 then break end
-            if target.bIsInParachute == true or target.bInParachute == true then break end
-
-            local tPos = nil
+        -- Sirf gun: grenade/melee skip
+        local wid = 0
+        if slua.isValid(weapon) then
             pcall(function()
-                if type(target.GetBonePos) == "function" then
-                    tPos = target:GetBonePos(selBone, {X=0, Y=0, Z=0})
+                if type(weapon.GetWeaponID) == "function" then
+                    wid = tonumber(weapon:GetWeaponID()) or 0
                 end
             end)
-            if not tPos or (tPos.X == 0 and tPos.Y == 0 and tPos.Z == 0) then
+            if wid == 0 then
                 pcall(function()
-                    if slua.isValid(target.Mesh) and type(target.Mesh.GetSocketLocation) == "function" then
-                        tPos = target.Mesh:GetSocketLocation(selBone)
+                    if type(weapon.GetItemDefineID) == "function" then
+                        local def = weapon:GetItemDefineID()
+                        if def then wid = tonumber(def.TypeSpecificID) or 0 end
                     end
                 end)
             end
-            if not tPos or (tPos.X == 0 and tPos.Y == 0 and tPos.Z == 0) then
-                pcall(function()
-                    if type(target.K2_GetActorLocation) == "function" then
-                        tPos = target:K2_GetActorLocation()
+        end
+        if wid >= 602000 and wid < 603000 then return false end
+        if wid > 0 and (wid < 100000 or wid >= 200000) then return false end
+
+        -- Weapon entity (AutoAimingConfig yahan hoti hai)
+        local entity = nil
+        if slua.isValid(weapon) then
+            local fields = {"ShootWeaponEntityComp", "ShootWeaponEntityComponent", "ShootWeaponComponent", "STExtraShootWeaponComponent"}
+            for _, f in ipairs(fields) do
+                if not slua.isValid(entity) then
+                    local okF, v = pcall(function() return weapon[f] end)
+                    if okF and slua.isValid(v) then entity = v end
+                end
+            end
+            if not slua.isValid(entity) then
+                local methods = {"GetShootWeaponComponent", "GetShootWeaponEntityComponent"}
+                for _, m in ipairs(methods) do
+                    if not slua.isValid(entity) and type(weapon[m]) == "function" then
+                        local okM, v = pcall(weapon[m], weapon)
+                        if okM and slua.isValid(v) then entity = v end
                     end
-                end)
+                end
             end
-            if not tPos or (tPos.X == 0 and tPos.Y == 0 and tPos.Z == 0) then break end
-
-            local screen = FVector2D()
-            local success = pc:ProjectWorldLocationToScreen(tPos, screen, false)
-            if not success or screen.X <= 0 or screen.Y <= 0 then break end
-
-            local ddx = screen.X - centerX
-            local ddy = screen.Y - centerY
-            local distScreen = math.sqrt(ddx*ddx + ddy*ddy)
-            if distScreen > FOV_RADIUS then break end
-
-            if distScreen < bestScore then
-                bestScore = distScreen
-                bestTarget = target
-                bestPos = tPos
-            end
-            until true
         end
 
-        if not slua.isValid(bestTarget) or not bestPos then
-            showStatus("[GRENADE] NO TARGET IN FOV", {R=255, G=200, B=0, A=255}, 1.0)
-            return true
+        local cfgData = _G.GTLMODState.CustomTextData or {}
+        local power = SA_Clamp(cfgData.SilentAimPower, 10, 100, 40)
+        local hipDist = SA_Clamp(cfgData.SilentAimHip, 10, 40, 40)
+        local scopeDist = SA_Clamp(cfgData.SilentAimScope, 30, 180, 150)
+        local ignoreKnock = _G.GTLMODConfig.SilentAimIgKnock ~= false
+        local ignoreBots = _G.GTLMODConfig.SilentAimIgBot ~= false
+
+        local now = os.clock()
+        if not rt.active or now >= (rt.nextApply or 0) then
+            SA_ApplyPlayerState(pc, player)
+            if slua.isValid(entity) then
+                SA_ApplyWeapon(entity, power, hipDist, scopeDist, ignoreKnock)
+            end
+            rt.nextApply = now + 0.5
         end
 
-        -- Throw origin: hand socket, warna player + 80cm height
-        local origin = nil
-        local originIsHand = false
-        pcall(function()
-            if slua.isValid(player.Mesh) and type(player.Mesh.GetSocketLocation) == "function" then
-                origin = player.Mesh:GetSocketLocation("hand_r")
-                if origin then originIsHand = true end
-            end
-        end)
-        if not origin then
+        -- Enemy filtering (knocked/bots) throttle 0.25s
+        if now >= (rt.nextFilter or 0) then
+            local maxDist = hipDist
+            local isADS = false
             pcall(function()
-                if type(player.K2_GetActorLocation) == "function" then
-                    origin = player:K2_GetActorLocation()
+                if type(player.IsGunADS) == "function" then
+                    isADS = player:IsGunADS() == true
                 end
             end)
-        end
-        if not origin then return true end
-
-        local ox, oy, oz = origin.X or 0, origin.Y or 0, origin.Z or 0
-        if not originIsHand then oz = oz + 80 end
-
-        local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
-        local g = 980
-        local v2 = speed * speed
-
-        local aimX, aimY, aimZ = bestPos.X or 0, bestPos.Y or 0, bestPos.Z or 0
-        local theta, flight = 0, 0
-
-        local tVel = nil
-        pcall(function()
-            if type(bestTarget.GetVelocity) == "function" then tVel = bestTarget:GetVelocity() end
-        end)
-
-        -- 2 pass: pehle distance, phir running enemy ki prediction
-        for pass = 1, 2 do
-            local dx = aimX - ox
-            local dy = aimY - oy
-            local dz = aimZ - oz
-            local horiz = math.sqrt(dx*dx + dy*dy)
-            if horiz < 1 then horiz = 1 end
-
-            local disc = v2*v2 - g*(g*horiz*horiz + 2*dz*v2)
-            if disc < 0 then
-                theta = math.rad(45)
-                flight = 99
-            else
-                theta = atan2(v2 - math.sqrt(disc), g*horiz)
-                local cosT = math.cos(theta)
-                if cosT < 0.05 then cosT = 0.05 end
-                flight = horiz / (speed * cosT)
-            end
-
-            if pass == 1 and tVel then
-                aimX = aimX + (tVel.X or 0) * flight * 0.85
-                aimY = aimY + (tVel.Y or 0) * flight * 0.85
-            end
-        end
-
-        local fdx = aimX - ox
-        local fdy = aimY - oy
-        local yaw = math.deg(atan2(fdy, fdx))
-        if yaw < 0 then yaw = yaw + 360 end
-        local pitch = math.deg(theta)
-        if pitch > 85 then pitch = 85 end
-        if pitch < -85 then pitch = -85 end
-
-        pcall(function()
-            pc:SetControlRotation({Pitch = pitch, Yaw = yaw, Roll = 0}, "GrenadeAim")
-        end)
-
-        -- Cook timer: fuse - flight time = kitni der cook karna hai
-        local elapsed = os.clock() - st.startTime
-        local distM = player:GetDistanceTo(bestTarget) / 100
-        local remaining = (fuse - flight) - elapsed
-
-        if _G.GTLMODConfig.GrenadeAimTimer ~= false then
-            local hud = pc.MyHUD
-            if slua.isValid(hud) and type(hud.AddDebugText) == "function" then
-                local text, color, size
-                if flight >= 90 then
-                    text = string.format("[GRENADE] %.0fm | TOO FAR", distM)
-                    color = {R=255, G=60, B=60, A=255}
-                    size = 1.0
-                elseif remaining > 0.1 then
-                    text = string.format("[GRENADE] %.0fm | COOK %.1fs", distM, remaining)
-                    color = {R=255, G=200, B=0, A=255}
-                    size = 1.1
-                elseif remaining > -0.25 then
-                    text = string.format("THROW NOW! [%.0fm]", distM)
-                    color = {R=0, G=255, B=80, A=255}
-                    size = 1.6
-                else
-                    text = string.format("RELEASE! %.1fs LATE", -remaining)
-                    color = {R=255, G=40, B=40, A=255}
-                    size = 1.3
-                end
-
-                hud:AddDebugText(text, bestTarget, 0.09,
-                                 {X=0, Y=0, Z=140}, {X=0, Y=0, Z=140},
-                                 color, true, false, true, nil, size, true)
-            end
+            if not isADS then pcall(function() isADS = player.bIsGunADS == true end) end
+            if isADS then maxDist = scopeDist end
+            SA_UpdateForbid(player, maxDist, ignoreKnock, ignoreBots)
+            rt.nextFilter = now + 0.25
         end
 
         return true
     end)
 
-    if ok then return handled end
-    return false
+    return ok and handled == true
 end
 
 _G.AimTouch = function()
@@ -3223,11 +3135,6 @@ _G.AimTouch = function()
         local weapon = player.WeaponManagerComponent and player.WeaponManagerComponent.CurrentWeaponReplicated
         if not weapon and type(player.GetCurrentShootWeapon) == "function" then
             weapon = player:GetCurrentShootWeapon()
-        end
-
-        -- Grenade ke liye alag system chalta hai, Custom Aimbot ko rok do
-        if _G.GTLMODConfig.GrenadeAim and slua.isValid(weapon) and _G.IsGrenadeWeapon(weapon) then
-            return
         end
         
         local isShotgun = false
@@ -3862,7 +3769,7 @@ end
 
     pcall(function()
         local autoComp = localPlayer.AutoAimComp
-        if Valid(autoComp) then
+        if Valid(autoComp) and not _G.GTLMODConfig.SilentAimHead then
             if not _G.GTLMODState.OrigAutoAimCompCached then
                 _G.GTLMODState.OrigAutoAimCompCached = {
                     bOnlyHitHead = autoComp.bOnlyHitHead,
@@ -4019,7 +3926,7 @@ end
                     
                     if _G.GTLMODConfig.LessShake then entity.RecoilKickADS = 0.11; entity.RecoilKickADS = 0.0; entity.RecoilKickADS = 0.11 end
 
-                    if entity.AutoAimingConfig then
+                    if entity.AutoAimingConfig and not _G.GTLMODConfig.SilentAimHead then
                         if not entity.OriginalAutoAimCached then
                             entity.OriginalAutoAimCached = {
                                 OuterSpeed = entity.AutoAimingConfig.OuterRange and entity.AutoAimingConfig.OuterRange.Speed,
@@ -4809,11 +4716,11 @@ local function FastAimbotTick()
     end
 
     pcall(function()
-        local grenadeHandled = false
-        if _G.GTLMODConfig.GrenadeAim and _G.GrenadeAimTick then
-            grenadeHandled = (_G.GrenadeAimTick() == true)
+        local saHandled = false
+        if _G.SilentAimHeadTick then
+            saHandled = (_G.SilentAimHeadTick() == true)
         end
-        if not grenadeHandled and _G.GTLMODConfig.AimTouchEnable then
+        if not saHandled and _G.GTLMODConfig.AimTouchEnable then
             _G.AimTouch()
         end
     end)
