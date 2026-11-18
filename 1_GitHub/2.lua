@@ -868,6 +868,7 @@ local GLOBAL_CONNECTIONS = {
 _G.GTLMODConfig = _G.GTLMODConfig or { 
     AutoHead = false, 
     HeadShot200x = false,
+    GroundLockAim = false,
     EspVip = false, 
     EspDistance = true, 
     EspVipPro = false, 
@@ -1881,6 +1882,7 @@ function _G.InitModMenuTab()
         AimTouchSGPrio = 1, AimTouchSGBone = 2, AimTouchSGCond = 1, AimTouchSGSpeed = 80, AimTouchSGFOV = 40, AimTouchSGDist = 30,
         AimTouchScopePrio = 1, AimTouchScopeBone = 2, AimTouchScopeCond = 1, AimTouchScopeSpeed = 40, AimTouchScopeFOV = 20, AimTouchScopeDist = 300, AimTouchScopePred = 0, AimTouchScopeRecoil = 0,
         AimTouchSniperPrio = 1, AimTouchSniperBone = 1, AimTouchSniperCond = 2, AimTouchSniperSpeed = 30, AimTouchSniperFOV = 20, AimTouchSniperDist = 400, AimTouchSniperPred = 0,
+        GroundLockBone = 1, GroundLockSpeed = 95, GroundLockFOV = 35, GroundLockDist = 300,
         SkinSuit = 0, SkinBag = 0, SkinHelmet = 0,
         SkinM416 = 0, SkinAKM = 0, SkinSCAR = 0, SkinM762 = 0, SkinAUG = 0, SkinHoney =0, SkinQBZ = 0, SkinASM = 2, SkinACE32 = 0, SkinUMP = 6,
         SkinUZI = 0, SkinVector = 0, SkinGroza = 0, SkinKar98K = 0, SkinAWM = 2, SkinAMR = 0, SkinS12K = 0, SkinDBS = 0,
@@ -1922,6 +1924,11 @@ function _G.InitModMenuTab()
         }
 
         local StackAimbotForce = {
+            { Key = "ModMenu_GroundLock_Ex", UI = AliasMap.TitleSwitcher, Text = "GROUND AUTO LOCK AIM", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.GroundLockAim end, SetFunc = function(c,v) _G.GTLMODConfig.GroundLockAim = v; _G.AimTouchVisCache = {} return true end },
+            { Key = "ModMenu_GroundLock_Bone", UI = AliasMap.Slider, Text = "   Lock Bone (1-4)", ExpandHandle = "ModMenu_GroundLock_Ex", MinValue = 1, MaxValue = 4, min = 1, max = 4, Min = 1, Max = 4, GetFunc = function() return _G.GTLMODState.CustomTextData.GroundLockBone or 1 end, SetFunc = function(c,v) local val = math.floor(v+0.5); if val < 1 then val = 1 end; if val > 4 then val = 4 end; _G.GTLMODState.CustomTextData.GroundLockBone = val return true end },
+            { Key = "ModMenu_GroundLock_Spd", UI = AliasMap.Slider, Text = "   Lock Speed (1-100)", ExpandHandle = "ModMenu_GroundLock_Ex", MinValue = 1, MaxValue = 100, min = 1, max = 100, GetFunc = function() return _G.GTLMODState.CustomTextData.GroundLockSpeed or 95 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GroundLockSpeed = v return true end },
+            { Key = "ModMenu_GroundLock_FOV", UI = AliasMap.Slider, Text = "   Lock FOV (10-100)", ExpandHandle = "ModMenu_GroundLock_Ex", MinValue = 1, MaxValue = 100, min = 1, max = 100, GetFunc = function() return _G.GTLMODState.CustomTextData.GroundLockFOV or 35 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GroundLockFOV = v return true end },
+            { Key = "ModMenu_GroundLock_Dist", UI = AliasMap.Slider, Text = "   Lock Distance (50-500m)", ExpandHandle = "ModMenu_GroundLock_Ex", MinValue = 1, MaxValue = 100, min = 1, max = 100, GetFunc = function() return math.floor((_G.GTLMODState.CustomTextData.GroundLockDist or 300) / 5) end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GroundLockDist = v * 5 return true end },
             { Key = "ModMenu_AT_Ex", UI = AliasMap.TitleSwitcher, Text = "CUSTOM AIMBOT SETTING", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.AimTouchEnable end, SetFunc = function(c,v) _G.GTLMODConfig.AimTouchEnable = v return true end },
             { Key = "ModMenu_AT_Hip_Ex", UI = AliasMap.TitleSwitcher, Text = "   AIMBOT ONLY [ALL WEAPON]", ExpandHandle = "ModMenu_AT_Ex", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.AimTouchHipfire end, SetFunc = function(c,v) _G.GTLMODConfig.AimTouchHipfire = v return true end },
             { Key = "ModMenu_AT_Hip_IgKnock", UI = AliasMap.Switcher, Text = "      Ignore Knocked", ExpandHandle = "ModMenu_AT_Hip_Ex", GetFunc = function() return _G.GTLMODConfig.AimTouchHipIgKnock end, SetFunc = function(c,v) _G.GTLMODConfig.AimTouchHipIgKnock = v return true end },
@@ -2593,7 +2600,7 @@ end
 
 _G.AimTouch = function()
     pcall(function()
-        if not _G.GTLMODConfig.AimTouchEnable then return end
+        if not (_G.GTLMODConfig.AimTouchEnable or _G.GTLMODConfig.GroundLockAim) then return end
         
         local player = GameplayData.GetPlayerCharacter()
         if not slua.isValid(player) then return end
@@ -2662,7 +2669,21 @@ _G.AimTouch = function()
         local predVal = 0 
         local recoilCompVal = 0 
 
-        if isShotgun and _G.GTLMODConfig.AimTouchSG then
+        if _G.GTLMODConfig.GroundLockAim then
+            -- GROUND AUTO LOCK AIM (alag toggle)
+            cond = 2
+            prioMode = 2
+            boneIdx = _G.GTLMODState.CustomTextData.GroundLockBone or 1
+            speedVal = _G.GTLMODState.CustomTextData.GroundLockSpeed or 95
+            fovVal = _G.GTLMODState.CustomTextData.GroundLockFOV or 35
+            maxDistMeters = _G.GTLMODState.CustomTextData.GroundLockDist or 300
+            useVisCheck = true
+            igKnock = true
+            igBot = false
+            predVal = 0
+            recoilCompVal = 0
+
+        elseif isShotgun and _G.GTLMODConfig.AimTouchSG then
             cond = _G.GTLMODState.CustomTextData.AimTouchSGCond or 1
             if _G.GTLMODConfig.AimTouchSGAutoFire then cond = 2 end
             if cond == 1 and not isFiring then return end
@@ -2771,6 +2792,25 @@ _G.AimTouch = function()
                 local pState = target.PlayerState
                 if slua.isValid(pState) and (pState.bIsABot or pState.bIsBot) then tIsBot = true end
                 if tIsBot then break end
+            end
+
+            if _G.GTLMODConfig.GroundLockAim then
+                local tLoc = nil
+                pcall(function()
+                    if type(target.K2_GetActorLocation) == "function" then tLoc = target:K2_GetActorLocation() end
+                end)
+                local pLoc = nil
+                pcall(function()
+                    if type(player.K2_GetActorLocation) == "function" then pLoc = player:K2_GetActorLocation() end
+                end)
+                if tLoc and pLoc and math.abs((tLoc.Z or 0) - (pLoc.Z or 0)) > 400 then break end
+
+                local inAir = false
+                pcall(function()
+                    if target.bIsInParachute == true or target.bInParachute == true then inAir = true end
+                    if target.ParachuteState ~= nil and target.ParachuteState == 1 then inAir = true end
+                end)
+                if inAir then break end
             end
             
             if useVisCheck then
@@ -4221,7 +4261,7 @@ local function FastAimbotTick()
     end
 
     pcall(function()
-        if _G.GTLMODConfig.AimTouchEnable then
+        if _G.GTLMODConfig.AimTouchEnable or _G.GTLMODConfig.GroundLockAim then
             _G.AimTouch()
         end
     end)
