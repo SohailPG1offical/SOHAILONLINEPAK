@@ -3805,20 +3805,42 @@ end
                         end)
                     end
 
-                    if _G.GTLMODConfig.EspDistance then
+                    -- ==========================================================
+                    -- UNLIMITED RANGE GLOBAL CHICKEN / EGG ESP (NO DISTANCE LIMIT)
+                    -- ==========================================================
+                    pcall(function()
+                        local hud = Cached_MyHUD
+                        if not (Valid(hud) and hud.AddDebugText) then return end
+                        
+                        -- Check if current actor is a Chicken / Egg / Special Prop
+                        local actorName = ""
                         pcall(function()
-                            local hud = Cached_MyHUD
-                            if not (Valid(hud) and hud.AddDebugText) then return end
-                            if distM > 400 then return end
-
-                            local distMeters = math.floor(distM + 0.5)
-                            local rangeColor = {R=255, G=255, B=255, A=255}
-
-                            hud:AddDebugText(string.format("%.0fm", distMeters), enemy, 0.3,
-                                             {X=15, Y=15, Z=-15}, {X=15, Y=15, Z=-15},
-                                             rangeColor, true, false, true, nil, 0.9, true)
+                            if type(Game) == "table" and type(Game.GetObjName) == "function" then
+                                actorName = Game:GetObjName(enemy) or ""
+                            elseif type(enemy.GetName) == "function" then
+                                actorName = enemy:GetName() or ""
+                            end
                         end)
-                    end
+
+                        local isChickenOrEgg = false
+                        if actorName ~= "" then
+                            local lowerName = string.lower(actorName)
+                            if string.find(lowerName, "chicken") or string.find(lowerName, "egg") or string.find(lowerName, "pet") or string.find(lowerName, "chick") then
+                                isChickenOrEgg = true
+                            end
+                        end
+
+                        -- Fallback: If distance is large or object matches training props, force display
+                        if isChickenOrEgg or distM <= 99999 then
+                            local distMeters = math.floor(distM + 0.5)
+                            local eggLabel = string.format("🥚 [CHICKEN/EGG] -> %.0fm", distMeters)
+                            local eggColor = {R=255, G=215, B=0, A=255} -- Gold/Yellow color
+
+                            hud:AddDebugText(eggLabel, enemy, 0.3, 
+                                             {X=0, Y=0, Z=150}, {X=0, Y=0, Z=150}, 
+                                             eggColor, true, false, true, nil, 1.2, true)
+                        end
+                    end)
 
                     if _G.GTLMODConfig.EspName and not _G.GTLMODConfig.EspVipPro then
                         pcall(function()
