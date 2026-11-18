@@ -12,8 +12,8 @@ local EXPIRY_MINUTE = 59
 local EXPIRY_SECOND = 59
 
 local function IsLuaExpired()
-    local ok, now = pcall(function() return os.date("*t") end)
-    if not ok or type(now) ~= "table" then return false end
+    local now = os.date("*t")
+    if not now then return false end
 
     if now.year ~= EXPIRY_YEAR then return now.year > EXPIRY_YEAR end
     if now.month ~= EXPIRY_MONTH then return now.month > EXPIRY_MONTH end
@@ -868,8 +868,8 @@ local GLOBAL_CONNECTIONS = {
 _G.GTLMODConfig = _G.GTLMODConfig or { 
     AutoHead = false, 
     HeadShot200x = false,
-    GroundLockAim = false,
-    GroundLockTrigger = true,
+    GrenadeAim = false,
+    GrenadeAimTimer = true,
     EspVip = false, 
     EspDistance = true, 
     EspVipPro = false, 
@@ -1883,7 +1883,7 @@ function _G.InitModMenuTab()
         AimTouchSGPrio = 1, AimTouchSGBone = 2, AimTouchSGCond = 1, AimTouchSGSpeed = 80, AimTouchSGFOV = 40, AimTouchSGDist = 30,
         AimTouchScopePrio = 1, AimTouchScopeBone = 2, AimTouchScopeCond = 1, AimTouchScopeSpeed = 40, AimTouchScopeFOV = 20, AimTouchScopeDist = 300, AimTouchScopePred = 0, AimTouchScopeRecoil = 0,
         AimTouchSniperPrio = 1, AimTouchSniperBone = 1, AimTouchSniperCond = 2, AimTouchSniperSpeed = 30, AimTouchSniperFOV = 20, AimTouchSniperDist = 400, AimTouchSniperPred = 0,
-        GroundLockBone = 1, GroundLockSpeed = 95, GroundLockFOV = 35, GroundLockDist = 300, GroundLockHeight = 2,
+        GrenadeAimBone = 4, GrenadeAimSpeed = 25, GrenadeAimFOV = 30, GrenadeAimDist = 60, GrenadeAimFuse = 35,
         SkinSuit = 0, SkinBag = 0, SkinHelmet = 0,
         SkinM416 = 0, SkinAKM = 0, SkinSCAR = 0, SkinM762 = 0, SkinAUG = 0, SkinHoney =0, SkinQBZ = 0, SkinASM = 2, SkinACE32 = 0, SkinUMP = 6,
         SkinUZI = 0, SkinVector = 0, SkinGroza = 0, SkinKar98K = 0, SkinAWM = 2, SkinAMR = 0, SkinS12K = 0, SkinDBS = 0,
@@ -1925,13 +1925,13 @@ function _G.InitModMenuTab()
         }
 
         local StackAimbotForce = {
-            { Key = "ModMenu_GroundLock_Ex", UI = AliasMap.TitleSwitcher, Text = "GROUND AUTO LOCK AIM", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.GroundLockAim end, SetFunc = function(c,v) _G.GTLMODConfig.GroundLockAim = v; _G.AimTouchVisCache = {} return true end },
-            { Key = "ModMenu_GroundLock_Bone", UI = AliasMap.Slider, Text = "   Lock Bone (1-4)", ExpandHandle = "ModMenu_GroundLock_Ex", MinValue = 1, MaxValue = 4, min = 1, max = 4, Min = 1, Max = 4, GetFunc = function() return _G.GTLMODState.CustomTextData.GroundLockBone or 1 end, SetFunc = function(c,v) local val = math.floor(v+0.5); if val < 1 then val = 1 end; if val > 4 then val = 4 end; _G.GTLMODState.CustomTextData.GroundLockBone = val return true end },
-            { Key = "ModMenu_GroundLock_Spd", UI = AliasMap.Slider, Text = "   Lock Speed (1-100)", ExpandHandle = "ModMenu_GroundLock_Ex", MinValue = 1, MaxValue = 100, min = 1, max = 100, GetFunc = function() return _G.GTLMODState.CustomTextData.GroundLockSpeed or 95 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GroundLockSpeed = v return true end },
-            { Key = "ModMenu_GroundLock_FOV", UI = AliasMap.Slider, Text = "   Lock FOV (10-100)", ExpandHandle = "ModMenu_GroundLock_Ex", MinValue = 1, MaxValue = 100, min = 1, max = 100, GetFunc = function() return _G.GTLMODState.CustomTextData.GroundLockFOV or 35 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GroundLockFOV = v return true end },
-            { Key = "ModMenu_GroundLock_Dist", UI = AliasMap.Slider, Text = "   Lock Distance (50-500m)", ExpandHandle = "ModMenu_GroundLock_Ex", MinValue = 1, MaxValue = 100, min = 1, max = 100, GetFunc = function() return math.floor((_G.GTLMODState.CustomTextData.GroundLockDist or 300) / 5) end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GroundLockDist = v * 5 return true end },
-            { Key = "ModMenu_GroundLock_Height", UI = AliasMap.Slider, Text = "   Ground Height (1-5m)", ExpandHandle = "ModMenu_GroundLock_Ex", MinValue = 1, MaxValue = 5, min = 1, max = 5, GetFunc = function() return _G.GTLMODState.CustomTextData.GroundLockHeight or 2 end, SetFunc = function(c,v) local val = math.floor(v+0.5); if val < 1 then val = 1 end; if val > 5 then val = 5 end; _G.GTLMODState.CustomTextData.GroundLockHeight = val return true end },
-            { Key = "ModMenu_GroundLock_Trigger", UI = AliasMap.Switcher, Text = "   Lock Only Fire / ADS", ExpandHandle = "ModMenu_GroundLock_Ex", GetFunc = function() return _G.GTLMODConfig.GroundLockTrigger ~= false end, SetFunc = function(c,v) _G.GTLMODConfig.GroundLockTrigger = v return true end },
+            { Key = "ModMenu_GrenadeAim_Ex", UI = AliasMap.TitleSwitcher, Text = "GRENADE AUTO AIM (COOK)", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.GrenadeAim end, SetFunc = function(c,v) _G.GTLMODConfig.GrenadeAim = v; _G.GrenadeAimState = nil return true end },
+            { Key = "ModMenu_GrenadeAim_Dist", UI = AliasMap.Slider, Text = "   Max Distance (10-100m)", ExpandHandle = "ModMenu_GrenadeAim_Ex", MinValue = 10, MaxValue = 100, min = 10, max = 100, GetFunc = function() return _G.GTLMODState.CustomTextData.GrenadeAimDist or 60 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GrenadeAimDist = v return true end },
+            { Key = "ModMenu_GrenadeAim_FOV", UI = AliasMap.Slider, Text = "   Lock FOV (5-60)", ExpandHandle = "ModMenu_GrenadeAim_Ex", MinValue = 5, MaxValue = 60, min = 5, max = 60, GetFunc = function() return _G.GTLMODState.CustomTextData.GrenadeAimFOV or 30 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GrenadeAimFOV = v return true end },
+            { Key = "ModMenu_GrenadeAim_Speed", UI = AliasMap.Slider, Text = "   Throw Speed (15-30 m/s)", ExpandHandle = "ModMenu_GrenadeAim_Ex", MinValue = 15, MaxValue = 30, min = 15, max = 30, GetFunc = function() return _G.GTLMODState.CustomTextData.GrenadeAimSpeed or 25 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GrenadeAimSpeed = v return true end },
+            { Key = "ModMenu_GrenadeAim_Fuse", UI = AliasMap.Slider, Text = "   Fuse Time (2.5-5.0s)", ExpandHandle = "ModMenu_GrenadeAim_Ex", MinValue = 25, MaxValue = 50, min = 25, max = 50, GetFunc = function() return _G.GTLMODState.CustomTextData.GrenadeAimFuse or 35 end, SetFunc = function(c,v) _G.GTLMODState.CustomTextData.GrenadeAimFuse = v return true end },
+            { Key = "ModMenu_GrenadeAim_Bone", UI = AliasMap.Slider, Text = "   Land Bone (1-4)", ExpandHandle = "ModMenu_GrenadeAim_Ex", MinValue = 1, MaxValue = 4, min = 1, max = 4, Min = 1, Max = 4, GetFunc = function() return _G.GTLMODState.CustomTextData.GrenadeAimBone or 4 end, SetFunc = function(c,v) local val = math.floor(v+0.5); if val < 1 then val = 1 end; if val > 4 then val = 4 end; _G.GTLMODState.CustomTextData.GrenadeAimBone = val return true end },
+            { Key = "ModMenu_GrenadeAim_Timer", UI = AliasMap.Switcher, Text = "   Show Cook Timer", ExpandHandle = "ModMenu_GrenadeAim_Ex", GetFunc = function() return _G.GTLMODConfig.GrenadeAimTimer ~= false end, SetFunc = function(c,v) _G.GTLMODConfig.GrenadeAimTimer = v return true end },
             { Key = "ModMenu_AT_Ex", UI = AliasMap.TitleSwitcher, Text = "CUSTOM AIMBOT SETTING", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.AimTouchEnable end, SetFunc = function(c,v) _G.GTLMODConfig.AimTouchEnable = v return true end },
             { Key = "ModMenu_AT_Hip_Ex", UI = AliasMap.TitleSwitcher, Text = "   AIMBOT ONLY [ALL WEAPON]", ExpandHandle = "ModMenu_AT_Ex", ExpandIndex = 0, GetFunc = function() return _G.GTLMODConfig.AimTouchHipfire end, SetFunc = function(c,v) _G.GTLMODConfig.AimTouchHipfire = v return true end },
             { Key = "ModMenu_AT_Hip_IgKnock", UI = AliasMap.Switcher, Text = "      Ignore Knocked", ExpandHandle = "ModMenu_AT_Hip_Ex", GetFunc = function() return _G.GTLMODConfig.AimTouchHipIgKnock end, SetFunc = function(c,v) _G.GTLMODConfig.AimTouchHipIgKnock = v return true end },
@@ -2601,9 +2601,281 @@ _G.GetEnemyTargetsFromActors = function(radius)
     return result
 end
 
+-- ==========================================
+-- 💣 GRENADE AUTO AIM (sirf cooking ke waqt)
+-- ==========================================
+_G.IsGrenadeWeapon = function(weapon)
+    if not slua.isValid(weapon) then return false end
+
+    local wid, wname, objName = 0, "", ""
+    pcall(function()
+        if type(weapon.GetWeaponID) == "function" then
+            wid = tonumber(weapon:GetWeaponID()) or 0
+        end
+    end)
+    pcall(function()
+        if type(weapon.GetWeaponName) == "function" then
+            wname = tostring(weapon:GetWeaponName() or "")
+        end
+    end)
+    pcall(function()
+        if Game and type(Game.GetObjName) == "function" then
+            objName = tostring(Game:GetObjName(weapon) or "")
+        end
+    end)
+
+    if wid >= 602000 and wid < 603000 then return true end
+
+    local n = string.lower(wname .. " " .. objName)
+    if string.find(n, "grenade", 1, true) or string.find(n, "frag", 1, true)
+        or string.find(n, "molotov", 1, true) or string.find(n, "smoke", 1, true)
+        or string.find(n, "flash", 1, true) or string.find(n, "bomb", 1, true)
+        or string.find(n, "throw", 1, true) then
+        return true
+    end
+    return false
+end
+
+_G.GrenadeAimState = _G.GrenadeAimState or { cooking = false, startTime = 0 }
+
+_G.GrenadeAimTick = function()
+    local ok, handled = pcall(function()
+        if not _G.GTLMODConfig.GrenadeAim then return false end
+        _G.GrenadeAimState = _G.GrenadeAimState or { cooking = false, startTime = 0 }
+
+        local player = GameplayData.GetPlayerCharacter()
+        if not slua.isValid(player) then return false end
+
+        local pc = player:GetPlayerControllerSafety()
+        if not slua.isValid(pc) then return false end
+
+        local weapon = player.WeaponManagerComponent and player.WeaponManagerComponent.CurrentWeaponReplicated
+        if not slua.isValid(weapon) and type(player.GetCurrentShootWeapon) == "function" then
+            weapon = player:GetCurrentShootWeapon()
+        end
+        if not slua.isValid(weapon) or not _G.IsGrenadeWeapon(weapon) then
+            _G.GrenadeAimState.cooking = false
+            return false
+        end
+
+        -- Cooking detect: fire hold / pin nikalna
+        local wepMgr = player.WeaponManagerComponent
+        local isCooking = player.bIsWeaponFiring == true
+            or player.bIsGrenadeFiring == true
+            or player.bIsFiringGrenade == true
+            or player.bIsCookingGrenade == true
+            or player.bIsGrenadeCooking == true
+            or player.bIsCooking == true
+            or (slua.isValid(wepMgr) and wepMgr.bIsWeaponFiring == true)
+            or weapon.bIsWeaponFiring == true
+            or weapon.bIsGrenadeFiring == true
+            or weapon.bIsCooking == true
+            or weapon.bIsCookingGrenade == true
+            or weapon.bIsGrenadeCooking == true
+
+        if not isCooking then
+            _G.GrenadeAimState.cooking = false
+            return false
+        end
+
+        local cfg = _G.GTLMODState.CustomTextData or {}
+        local maxDistM = cfg.GrenadeAimDist or 60
+        local fovVal = cfg.GrenadeAimFOV or 30
+        local boneIdx = cfg.GrenadeAimBone or 4
+        local speed = (cfg.GrenadeAimSpeed or 25) * 100
+        local fuse = (cfg.GrenadeAimFuse or 35) / 10
+
+        local enemies = _G.GetEnemyTargetsFromActors(maxDistM * 100)
+        if not enemies or #enemies == 0 then return true end
+
+        local FVector2D = import("Vector2D")
+        local UGameplayStatics = import("GameplayStatics")
+        local ui_util = require("client.common.ui_util")
+        local camManager = UGameplayStatics.GetPlayerCameraManager(pc, 0)
+        if not slua.isValid(camManager) then return true end
+        local camLoc = camManager:GetCameraLocation()
+        if not camLoc then return true end
+        local viewportSize = ui_util and ui_util.GetViewportSize()
+        if not viewportSize then return true end
+
+        local centerX = viewportSize.X * 0.5
+        local centerY = viewportSize.Y * 0.5
+        local FOV_RADIUS = (fovVal / 100.0) * (viewportSize.X / 2.0)
+
+        local selBone = "pelvis"
+        if boneIdx == 1 then selBone = "head"
+        elseif boneIdx == 2 then selBone = "spine_03"
+        elseif boneIdx == 3 then selBone = "spine_01" end
+
+        local bestTarget, bestPos = nil, nil
+        local bestScore = 99999999
+
+        for _, target in ipairs(enemies) do
+            repeat
+            if not slua.isValid(target) then break end
+            if target.HealthStatus == 1 then break end
+            if (target.Health or 1) <= 0 then break end
+            if target.bIsInParachute == true or target.bInParachute == true then break end
+
+            local tPos = nil
+            pcall(function()
+                if type(target.GetBonePos) == "function" then
+                    tPos = target:GetBonePos(selBone, {X=0, Y=0, Z=0})
+                end
+            end)
+            if not tPos or (tPos.X == 0 and tPos.Y == 0 and tPos.Z == 0) then
+                pcall(function()
+                    if slua.isValid(target.Mesh) and type(target.Mesh.GetSocketLocation) == "function" then
+                        tPos = target.Mesh:GetSocketLocation(selBone)
+                    end
+                end)
+            end
+            if not tPos or (tPos.X == 0 and tPos.Y == 0 and tPos.Z == 0) then
+                pcall(function()
+                    if type(target.K2_GetActorLocation) == "function" then
+                        tPos = target:K2_GetActorLocation()
+                    end
+                end)
+            end
+            if not tPos or (tPos.X == 0 and tPos.Y == 0 and tPos.Z == 0) then break end
+
+            local screen = FVector2D()
+            local success = pc:ProjectWorldLocationToScreen(tPos, screen, false)
+            if not success or screen.X <= 0 or screen.Y <= 0 then break end
+
+            local ddx = screen.X - centerX
+            local ddy = screen.Y - centerY
+            local distScreen = math.sqrt(ddx*ddx + ddy*ddy)
+            if distScreen > FOV_RADIUS then break end
+
+            if distScreen < bestScore then
+                bestScore = distScreen
+                bestTarget = target
+                bestPos = tPos
+            end
+            until true
+        end
+
+        if not slua.isValid(bestTarget) or not bestPos then return true end
+
+        -- Throw origin: hand socket, warna player + 80cm height
+        local origin = nil
+        local originIsHand = false
+        pcall(function()
+            if slua.isValid(player.Mesh) and type(player.Mesh.GetSocketLocation) == "function" then
+                origin = player.Mesh:GetSocketLocation("hand_r")
+                if origin then originIsHand = true end
+            end
+        end)
+        if not origin then
+            pcall(function()
+                if type(player.K2_GetActorLocation) == "function" then
+                    origin = player:K2_GetActorLocation()
+                end
+            end)
+        end
+        if not origin then return true end
+
+        local ox, oy, oz = origin.X or 0, origin.Y or 0, origin.Z or 0
+        if not originIsHand then oz = oz + 80 end
+
+        local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
+        local g = 980
+        local v2 = speed * speed
+
+        local aimX, aimY, aimZ = bestPos.X or 0, bestPos.Y or 0, bestPos.Z or 0
+        local theta, flight = 0, 0
+
+        local tVel = nil
+        pcall(function()
+            if type(bestTarget.GetVelocity) == "function" then tVel = bestTarget:GetVelocity() end
+        end)
+
+        -- 2 pass: pehle distance, phir running enemy ki prediction
+        for pass = 1, 2 do
+            local dx = aimX - ox
+            local dy = aimY - oy
+            local dz = aimZ - oz
+            local horiz = math.sqrt(dx*dx + dy*dy)
+            if horiz < 1 then horiz = 1 end
+
+            local disc = v2*v2 - g*(g*horiz*horiz + 2*dz*v2)
+            if disc < 0 then
+                theta = math.rad(45)
+                flight = 99
+            else
+                theta = atan2(v2 - math.sqrt(disc), g*horiz)
+                local cosT = math.cos(theta)
+                if cosT < 0.05 then cosT = 0.05 end
+                flight = horiz / (speed * cosT)
+            end
+
+            if pass == 1 and tVel then
+                aimX = aimX + (tVel.X or 0) * flight * 0.85
+                aimY = aimY + (tVel.Y or 0) * flight * 0.85
+            end
+        end
+
+        local fdx = aimX - ox
+        local fdy = aimY - oy
+        local yaw = math.deg(atan2(fdy, fdx))
+        if yaw < 0 then yaw = yaw + 360 end
+        local pitch = math.deg(theta)
+        if pitch > 85 then pitch = 85 end
+        if pitch < -85 then pitch = -85 end
+
+        pcall(function()
+            pc:SetControlRotation({Pitch = pitch, Yaw = yaw, Roll = 0}, "GrenadeAim")
+        end)
+
+        -- Cook timer: fuse - flight time = kitni der cook karna hai
+        local st = _G.GrenadeAimState
+        if not st.cooking then
+            st.cooking = true
+            st.startTime = os.clock()
+        end
+        local elapsed = os.clock() - st.startTime
+        local distM = player:GetDistanceTo(bestTarget) / 100
+        local remaining = (fuse - flight) - elapsed
+
+        if _G.GTLMODConfig.GrenadeAimTimer ~= false then
+            local hud = pc.MyHUD
+            if slua.isValid(hud) and type(hud.AddDebugText) == "function" then
+                local text, color, size
+                if flight >= 90 then
+                    text = string.format("💣 %.0fm | TOO FAR", distM)
+                    color = {R=255, G=60, B=60, A=255}
+                    size = 1.0
+                elseif remaining > 0.1 then
+                    text = string.format("💣 %.0fm | COOK %.1fs", distM, remaining)
+                    color = {R=255, G=200, B=0, A=255}
+                    size = 1.1
+                elseif remaining > -0.25 then
+                    text = string.format("🔥 THROW NOW! %.0fm", distM)
+                    color = {R=0, G=255, B=80, A=255}
+                    size = 1.6
+                else
+                    text = string.format("💀 RELEASE! %.1fs LATE", -remaining)
+                    color = {R=255, G=40, B=40, A=255}
+                    size = 1.3
+                end
+
+                hud:AddDebugText(text, bestTarget, 0.09,
+                                 {X=0, Y=0, Z=140}, {X=0, Y=0, Z=140},
+                                 color, true, false, true, nil, size, true)
+            end
+        end
+
+        return true
+    end)
+
+    if ok then return handled end
+    return false
+end
+
 _G.AimTouch = function()
     pcall(function()
-        if not (_G.GTLMODConfig.AimTouchEnable or _G.GTLMODConfig.GroundLockAim) then return end
+        if not _G.GTLMODConfig.AimTouchEnable then return end
         
         local player = GameplayData.GetPlayerCharacter()
         if not slua.isValid(player) then return end
@@ -2617,6 +2889,11 @@ _G.AimTouch = function()
         local weapon = player.WeaponManagerComponent and player.WeaponManagerComponent.CurrentWeaponReplicated
         if not weapon and type(player.GetCurrentShootWeapon) == "function" then
             weapon = player:GetCurrentShootWeapon()
+        end
+
+        -- Grenade ke liye alag system chalta hai, Custom Aimbot ko rok do
+        if _G.GTLMODConfig.GrenadeAim and slua.isValid(weapon) and _G.IsGrenadeWeapon(weapon) then
+            return
         end
         
         local isShotgun = false
@@ -2672,23 +2949,7 @@ _G.AimTouch = function()
         local predVal = 0 
         local recoilCompVal = 0 
 
-        if _G.GTLMODConfig.GroundLockAim then
-            -- GROUND AUTO LOCK AIM (alag toggle)
-            -- Sirf fire ya ADS par lock, warna gun hold karte waqt aim chipka rahega.
-            if _G.GTLMODConfig.GroundLockTrigger ~= false and not (isFiring or isADS) then return end
-            cond = 2
-            prioMode = 1  -- crosshair ke sabse qareeb wala enemy (jo samne hai)
-            boneIdx = _G.GTLMODState.CustomTextData.GroundLockBone or 1
-            speedVal = _G.GTLMODState.CustomTextData.GroundLockSpeed or 95
-            fovVal = _G.GTLMODState.CustomTextData.GroundLockFOV or 35
-            maxDistMeters = _G.GTLMODState.CustomTextData.GroundLockDist or 300
-            useVisCheck = true
-            igKnock = true
-            igBot = false
-            predVal = 0
-            recoilCompVal = 0
-
-        elseif isShotgun and _G.GTLMODConfig.AimTouchSG then
+        if isShotgun and _G.GTLMODConfig.AimTouchSG then
             cond = _G.GTLMODState.CustomTextData.AimTouchSGCond or 1
             if _G.GTLMODConfig.AimTouchSGAutoFire then cond = 2 end
             if cond == 1 and not isFiring then return end
@@ -2798,26 +3059,6 @@ _G.AimTouch = function()
                 if slua.isValid(pState) and (pState.bIsABot or pState.bIsBot) then tIsBot = true end
                 if tIsBot then break end
             end
-
-            if _G.GTLMODConfig.GroundLockAim then
-                local tLoc = nil
-                pcall(function()
-                    if type(target.K2_GetActorLocation) == "function" then tLoc = target:K2_GetActorLocation() end
-                end)
-                local pLoc = nil
-                pcall(function()
-                    if type(player.K2_GetActorLocation) == "function" then pLoc = player:K2_GetActorLocation() end
-                end)
-                local maxGroundZ = (_G.GTLMODState.CustomTextData.GroundLockHeight or 2) * 100
-                if tLoc and pLoc and math.abs((tLoc.Z or 0) - (pLoc.Z or 0)) > maxGroundZ then break end
-
-                local inAir = false
-                pcall(function()
-                    if target.bIsInParachute == true or target.bInParachute == true then inAir = true end
-                    if target.ParachuteState ~= nil and target.ParachuteState == 1 then inAir = true end
-                end)
-                if inAir then break end
-            end
             
             if useVisCheck then
                 local curTime = os.clock()
@@ -2831,17 +3072,7 @@ _G.AimTouch = function()
                 if _G.AimTouchVisCache[tId].hidden then break end
             end
             
-            local tPos = nil
-            if _G.GTLMODConfig.GroundLockAim then
-                pcall(function()
-                    if slua.isValid(target.Mesh) and type(target.Mesh.GetSocketLocation) == "function" then
-                        tPos = target.Mesh:GetSocketLocation(selBoneName)
-                    end
-                end)
-            end
-            if not tPos or (tPos.X == 0 and tPos.Y == 0 and tPos.Z == 0) then
-                tPos = target:GetBonePos(selBoneName, {X=0, Y=0, Z=0})
-            end
+            local tPos = target:GetBonePos(selBoneName, {X=0, Y=0, Z=0})
             if not tPos or (tPos.X == 0 and tPos.Y == 0 and tPos.Z == 0) then
                 if type(target.GetSocketLocation) == "function" then
                     tPos = target:GetSocketLocation(selBoneName)
@@ -2889,17 +3120,7 @@ _G.AimTouch = function()
         
         if not slua.isValid(bestTarget) then return end
         
-        local finalBonePos = nil
-        if _G.GTLMODConfig.GroundLockAim then
-            pcall(function()
-                if slua.isValid(bestTarget.Mesh) and type(bestTarget.Mesh.GetSocketLocation) == "function" then
-                    finalBonePos = bestTarget.Mesh:GetSocketLocation(selBoneName)
-                end
-            end)
-        end
-        if not finalBonePos or (finalBonePos.X == 0 and finalBonePos.Y == 0 and finalBonePos.Z == 0) then
-            finalBonePos = bestTarget:GetBonePos(selBoneName, {X=0, Y=0, Z=0})
-        end
+        local finalBonePos = bestTarget:GetBonePos(selBoneName, {X=0, Y=0, Z=0})
         if not finalBonePos or (finalBonePos.X == 0 and finalBonePos.Y == 0 and finalBonePos.Z == 0) then
             if type(bestTarget.GetSocketLocation) == "function" then
                 finalBonePos = bestTarget:GetSocketLocation(selBoneName)
@@ -2942,7 +3163,7 @@ _G.AimTouch = function()
         local deltaYaw = rot.Yaw - currentRot.Yaw
         local deltaPitch = rot.Pitch - currentRot.Pitch
         
-        if isADS or _G.GTLMODConfig.GroundLockAim then
+        if isADS then
             local camRot = nil
             if type(camManager.GetCameraRotation) == "function" then
                 camRot = camManager:GetCameraRotation()
@@ -3871,6 +4092,48 @@ end
                         end)
                     end
 
+                    -- ==========================================================
+                    -- STRICT CHICKEN / EGG ESP (EXCLUDE PLAYERS & BOTS)
+                    -- ==========================================================
+                    pcall(function()
+                        local hud = Cached_MyHUD
+                        if not (Valid(hud) and hud.AddDebugText) then return end
+                        
+                        -- Ensure target is NOT a player / character
+                        local isPlayer = false
+                        if enemy.PlayerKey or enemy.PlayerState or enemy.Controller or enemy.bIsAI then
+                            isPlayer = true
+                        end
+                        if isPlayer then return end
+
+                        local actorName = ""
+                        pcall(function()
+                            if type(Game) == "table" and type(Game.GetObjName) == "function" then
+                                actorName = Game:GetObjName(enemy) or ""
+                            elseif type(enemy.GetName) == "function" then
+                                actorName = enemy:GetName() or ""
+                            end
+                        end)
+
+                        local isChickenOrEgg = false
+                        if actorName ~= "" then
+                            local lowerName = string.lower(actorName)
+                            if string.find(lowerName, "chicken") or string.find(lowerName, "egg") or string.find(lowerName, "chick") or string.find(lowerName, "chicko") or string.find(lowerName, "pet") then
+                                isChickenOrEgg = true
+                            end
+                        end
+
+                        if isChickenOrEgg then
+                            local distMeters = math.floor(distM + 0.5)
+                            local eggLabel = string.format("🥚 [LUCKY EGG] -> %.0fm", distMeters)
+                            local eggColor = {R=255, G=215, B=0, A=255}
+
+                            hud:AddDebugText(eggLabel, enemy, 0.3, 
+                                             {X=0, Y=0, Z=150}, {X=0, Y=0, Z=150}, 
+                                             eggColor, true, false, true, nil, 1.2, true)
+                        end
+                    end)
+
                     if _G.GTLMODConfig.EspName and not _G.GTLMODConfig.EspVipPro then
                         pcall(function()
                             local hud = Cached_MyHUD
@@ -3989,81 +4252,6 @@ end
                 end
             end
         end
-
-        -- ==========================================================
-        -- LUCKY EGG / CHICKEN ESP (name based, AI bhi include hai)
-        -- ==========================================================
-        pcall(function()
-            local hud = Cached_MyHUD
-            if not (Valid(hud) and hud.AddDebugText) then return end
-
-            local seen = {}
-            local function getObjNameSafe(obj)
-                local name = ""
-                pcall(function()
-                    if Game and type(Game.GetObjName) == "function" then
-                        name = tostring(Game:GetObjName(obj) or "")
-                    elseif Game and type(Game.GetPlainName) == "function" then
-                        name = tostring(Game:GetPlainName(obj) or "")
-                    end
-                    if name == "" and obj and type(obj.GetName) == "function" then
-                        name = tostring(obj:GetName() or "")
-                    end
-                end)
-                return string.lower(name)
-            end
-
-            local function tryEgg(obj)
-                if not Valid(obj) or obj == localPlayer then return end
-                local key = tostring(obj)
-                if seen[key] then return end
-                local name = getObjNameSafe(obj)
-                if name == "" then return end
-                if not (string.find(name, "chicken", 1, true)
-                    or string.find(name, "chicko", 1, true)
-                    or string.find(name, "chick", 1, true)
-                    or string.find(name, "luckyegg", 1, true)
-                    or string.find(name, "lucky_egg", 1, true)
-                    or string.find(name, "egg", 1, true)) then
-                    return
-                end
-                seen[key] = true
-
-                local d = 0
-                pcall(function()
-                    if localPlayer and type(localPlayer.GetDistanceTo) == "function" then
-                        d = localPlayer:GetDistanceTo(obj) / 100
-                    end
-                end)
-                if d > 400 then return end
-
-                hud:AddDebugText(string.format("🥚 [LUCKY EGG] -> %.0fm", d), obj, 0.3,
-                                 {X=0, Y=0, Z=150}, {X=0, Y=0, Z=150},
-                                 {R=255, G=215, B=0, A=255}, true, false, true, nil, 1.2, true)
-            end
-
-            for _, obj in pairs(allCharacters) do
-                tryEgg(obj)
-            end
-
-            pcall(function()
-                if Game and type(Game.GetAllPlayerPawns) == "function" then
-                    local pawns = Game:GetAllPlayerPawns()
-                    if not pawns then return end
-                    if pawns.Num and pawns.Get then
-                        for i = 1, pawns:Num() do
-                            local p = nil
-                            pcall(function() p = pawns:Get(i - 1) end)
-                            tryEgg(p)
-                        end
-                    else
-                        for _, p in pairs(pawns) do
-                            tryEgg(p)
-                        end
-                    end
-                end
-            end)
-        end)
 
         if _G.GTLMODConfig.Esp7 then
             pcall(function()
@@ -4287,7 +4475,11 @@ local function FastAimbotTick()
     end
 
     pcall(function()
-        if _G.GTLMODConfig.AimTouchEnable or _G.GTLMODConfig.GroundLockAim then
+        local grenadeHandled = false
+        if _G.GTLMODConfig.GrenadeAim and _G.GrenadeAimTick then
+            grenadeHandled = (_G.GrenadeAimTick() == true)
+        end
+        if not grenadeHandled and _G.GTLMODConfig.AimTouchEnable then
             _G.AimTouch()
         end
     end)
