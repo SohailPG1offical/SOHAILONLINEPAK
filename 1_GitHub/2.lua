@@ -2609,15 +2609,26 @@ _G.IsGrenadeWeapon = function(weapon)
 
     local wid, wname, objName = 0, "", ""
     pcall(function()
-        if type(weapon.GetWeaponID) == "function" then
-            wid = tonumber(weapon:GetWeaponID()) or 0
+        if type(weapon.GetItemDefineID) == "function" then
+            local def = weapon:GetItemDefineID()
+            if def then wid = tonumber(def.TypeSpecificID) or tonumber(def.TypeID) or 0 end
         end
     end)
+    if wid == 0 then
+        pcall(function()
+            if type(weapon.GetWeaponID) == "function" then
+                wid = tonumber(weapon:GetWeaponID()) or 0
+            end
+        end)
+    end
     pcall(function()
         if type(weapon.GetWeaponName) == "function" then
             wname = tostring(weapon:GetWeaponName() or "")
         end
     end)
+    if wname == "" and type(weapon.GetItemName) == "function" then
+        pcall(function() wname = tostring(weapon:GetItemName() or "") end)
+    end
     pcall(function()
         if Game and type(Game.GetObjName) == "function" then
             objName = tostring(Game:GetObjName(weapon) or "")
@@ -2625,6 +2636,8 @@ _G.IsGrenadeWeapon = function(weapon)
     end)
 
     if wid >= 602000 and wid < 603000 then return true end
+    if wid >= 6020000 and wid < 6030000 then return true end
+    if wid >= 60200000 and wid < 60300000 then return true end
 
     local n = string.lower(wname .. " " .. objName)
     if string.find(n, "grenade", 1, true) or string.find(n, "frag", 1, true)
@@ -2649,7 +2662,25 @@ _G.GrenadeAimTick = function()
         local pc = player:GetPlayerControllerSafety()
         if not slua.isValid(pc) then return false end
 
-        local weapon = player.WeaponManagerComponent and player.WeaponManagerComponent.CurrentWeaponReplicated
+        local function showStatus(text, color, size)
+            local hud = pc.MyHUD
+            if slua.isValid(hud) and type(hud.AddDebugText) == "function" then
+                hud:AddDebugText(text, player, 0.2,
+                                 {X=0, Y=0, Z=170}, {X=0, Y=0, Z=170},
+                                 color, true, false, true, nil, size or 1.0, true)
+            end
+        end
+
+        -- Pehle GetCurrentWeapon (grenade yahi milta hai), phir baaki fallback
+        local weapon = nil
+        pcall(function()
+            if type(player.GetCurrentWeapon) == "function" then
+                weapon = player:GetCurrentWeapon()
+            end
+        end)
+        if not slua.isValid(weapon) and player.WeaponManagerComponent then
+            weapon = player.WeaponManagerComponent.CurrentWeaponReplicated
+        end
         if not slua.isValid(weapon) and type(player.GetCurrentShootWeapon) == "function" then
             weapon = player:GetCurrentShootWeapon()
         end
@@ -2659,23 +2690,79 @@ _G.GrenadeAimTick = function()
         end
 
         -- Cooking detect: fire hold / pin nikalna
+        local function onFlag(v) return v == true or v == 1 end
         local wepMgr = player.WeaponManagerComponent
-        local isCooking = player.bIsWeaponFiring == true
-            or player.bIsGrenadeFiring == true
-            or player.bIsFiringGrenade == true
-            or player.bIsCookingGrenade == true
-            or player.bIsGrenadeCooking == true
-            or player.bIsCooking == true
-            or (slua.isValid(wepMgr) and wepMgr.bIsWeaponFiring == true)
-            or weapon.bIsWeaponFiring == true
-            or weapon.bIsGrenadeFiring == true
-            or weapon.bIsCooking == true
-            or weapon.bIsCookingGrenade == true
-            or weapon.bIsGrenadeCooking == true
+        local isCooking = onFlag(player.bIsWeaponFiring)
+            or onFlag(player.bIsGrenadeFiring)
+            or onFlag(player.bIsFiringGrenade)
+            or onFlag(player.bIsCookingGrenade)
+            or onFlag(player.bIsGrenadeCooking)
+            or onFlag(player.bIsCooking)
+            or onFlag(player.bIsPinPulled)
+            or onFlag(player.bPinPulled)
+            or onFlag(player.bIsThrowGrenade)
+            or onFlag(player.bIsThrowingGrenade)
+            or onFlag(player.bIsGrenadeThrow)
+            or (slua.isValid(wepMgr) and onFlag(wepMgr.bIsWeaponFiring))
+            or onFlag(wepMgr and wepMgr.bIsCooking)
+            or onFlag(weapon.bIsWeaponFiring)
+            or onFlag(weapon.bIsGrenadeFiring)
+            or onFlag(weapon.bIsFiringGrenade)
+            or onFlag(weapon.bIsCooking)
+            or onFlag(weapon.bIsCookingGrenade)
+            or onFlag(weapon.bIsGrenadeCooking)
+            or onFlag(weapon.bIsPinPulled)
+            or onFlag(weapon.bPinPulled)
+            or onFlag(weapon.bIsThrowGrenade)
+            or onFlag(weapon.bIsThrowingGrenade)
+
+        if not isCooking then
+            pcall(function()
+                if type(weapon.IsPinPulled) == "function" and weapon:IsPinPulled() then isCooking = true end
+            end)
+        end
+        if not isCooking then
+            pcall(function()
+                if type(player.IsPinPulled) == "function" and player:IsPinPulled() then isCooking = true end
+            end)
+        end
+        if not isCooking then
+            pcall(function()
+                if type(weapon.IsCooking) == "function" and weapon:IsCooking() then isCooking = true end
+            end)
+        end
+        if not isCooking then
+            pcall(function()
+                if type(weapon.IsGrenadeCooking) == "function" and weapon:IsGrenadeCooking() then isCooking = true end
+            end)
+        end
+        if not isCooking then
+            pcall(function()
+                if type(player.IsGrenadeCooking) == "function" and player:IsGrenadeCooking() then isCooking = true end
+            end)
+        end
+        if not isCooking then
+            pcall(function()
+                if type(player.IsCookingGrenade) == "function" and player:IsCookingGrenade() then isCooking = true end
+            end)
+        end
+        if not isCooking and slua.isValid(wepMgr) then
+            pcall(function()
+                if type(wepMgr.IsGrenadeCooking) == "function" and wepMgr:IsGrenadeCooking() then isCooking = true end
+            end)
+        end
 
         if not isCooking then
             _G.GrenadeAimState.cooking = false
+            showStatus("[GRENADE] AIM READY - HOLD FIRE", {R=200, G=200, B=200, A=255}, 1.0)
             return false
+        end
+
+        -- Cooking shuru hote hi timer start (target baad me mile to bhi sahi rahe)
+        local st = _G.GrenadeAimState
+        if not st.cooking then
+            st.cooking = true
+            st.startTime = os.clock()
         end
 
         local cfg = _G.GTLMODState.CustomTextData or {}
@@ -2686,7 +2773,10 @@ _G.GrenadeAimTick = function()
         local fuse = (cfg.GrenadeAimFuse or 35) / 10
 
         local enemies = _G.GetEnemyTargetsFromActors(maxDistM * 100)
-        if not enemies or #enemies == 0 then return true end
+        if not enemies or #enemies == 0 then
+            showStatus("[GRENADE] NO TARGET", {R=255, G=200, B=0, A=255}, 1.0)
+            return true
+        end
 
         local FVector2D = import("Vector2D")
         local UGameplayStatics = import("GameplayStatics")
@@ -2756,7 +2846,10 @@ _G.GrenadeAimTick = function()
             until true
         end
 
-        if not slua.isValid(bestTarget) or not bestPos then return true end
+        if not slua.isValid(bestTarget) or not bestPos then
+            showStatus("[GRENADE] NO TARGET IN FOV", {R=255, G=200, B=0, A=255}, 1.0)
+            return true
+        end
 
         -- Throw origin: hand socket, warna player + 80cm height
         local origin = nil
@@ -2829,11 +2922,6 @@ _G.GrenadeAimTick = function()
         end)
 
         -- Cook timer: fuse - flight time = kitni der cook karna hai
-        local st = _G.GrenadeAimState
-        if not st.cooking then
-            st.cooking = true
-            st.startTime = os.clock()
-        end
         local elapsed = os.clock() - st.startTime
         local distM = player:GetDistanceTo(bestTarget) / 100
         local remaining = (fuse - flight) - elapsed
@@ -2843,19 +2931,19 @@ _G.GrenadeAimTick = function()
             if slua.isValid(hud) and type(hud.AddDebugText) == "function" then
                 local text, color, size
                 if flight >= 90 then
-                    text = string.format("💣 %.0fm | TOO FAR", distM)
+                    text = string.format("[GRENADE] %.0fm | TOO FAR", distM)
                     color = {R=255, G=60, B=60, A=255}
                     size = 1.0
                 elseif remaining > 0.1 then
-                    text = string.format("💣 %.0fm | COOK %.1fs", distM, remaining)
+                    text = string.format("[GRENADE] %.0fm | COOK %.1fs", distM, remaining)
                     color = {R=255, G=200, B=0, A=255}
                     size = 1.1
                 elseif remaining > -0.25 then
-                    text = string.format("🔥 THROW NOW! %.0fm", distM)
+                    text = string.format("THROW NOW! [%.0fm]", distM)
                     color = {R=0, G=255, B=80, A=255}
                     size = 1.6
                 else
-                    text = string.format("💀 RELEASE! %.1fs LATE", -remaining)
+                    text = string.format("RELEASE! %.1fs LATE", -remaining)
                     color = {R=255, G=40, B=40, A=255}
                     size = 1.3
                 end
