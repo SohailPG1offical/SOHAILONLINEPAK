@@ -1,5 +1,3 @@
--- ============================================================
-
 -- ========================================
 -- >>> WELCOME TO @SohailPG1 VIP MOD PAK FILE <<<
 -- =======================================
@@ -756,70 +754,117 @@ function BRPlayerCharacterBase:SwitchWeaponCheck(Slot, IgnoreState)
   end
   return self.Super:SwitchWeaponCheck(Slot, IgnoreState)
 end
+
 -- ============================================================================
--- SILENT BULLET TRACK - @SohailPG1
--- Crosshair / camera bilkul nahi hilti. Game ke apne auto-aim fields use karke
--- bullet enemy ke head bone ki taraf bias hoti hai. Koi SetControlRotation nahi.
+-- SAFE SMOOTH MOD - CORE
+-- Features: smooth customizable aimbot, lightweight ESP, 120 FPS,
+--           custom iPad view, conservative stealth layer.
+-- Includes adjustable expiry + welcome popup.
 -- ============================================================================
 
-local _prevOff = rawget(_G, "BulletTrackOff")
-if type(_prevOff) == "function" then pcall(_prevOff) end
-local _prevBypassOff = rawget(_G, "BulletTrackBypassOff")
-if type(_prevBypassOff) == "function" then pcall(_prevBypassOff) end
+-- ========================= EXPIRY (ADJUST HERE) =============================
+-- Change these values to set expiry date/time (local device time).
+-- Format: YEAR, MONTH, DAY, HOUR(24h), MINUTE, SECOND
+local SA_EXPIRY_YEAR   = 2026
+local SA_EXPIRY_MONTH  = 11
+local SA_EXPIRY_DAY    = 25
+local SA_EXPIRY_HOUR   = 23
+local SA_EXPIRY_MINUTE = 59
+local SA_EXPIRY_SECOND = 59
+-- Expired hone par mod features band ho jayenge (loops/menu/aim/esp/display).
+-- ============================================================================
 
-local BT_State = {
-    LastTick     = 0,
+local SA_State = {
+    LastAim      = 0,
+    LastEsp      = 0,
+    LastDisplay  = 0,
+    LastBypass   = 0,
     LastSave     = 0,
     LastMenuTry  = 0,
+    LastViewport = 0,
     LastEnemy    = 0,
-    Dirty        = false,
+    FPSApplied   = false,
+    IPadApplied  = false,
+    ESPActive    = false,
     MenuReady    = false,
+    MarkCfgReady = false,
+    LastMarkTry  = 0,
+    ReportPatched = false,
+    Dirty        = false,
+    SprayTime    = 0,
+    Viewport     = nil,
     Enemies      = {},
     EnemyOwner   = nil,
-}
-_G.BTState = BT_State
-
-local BT_CFG = _G.BTConfig or {}
-_G.BTConfig = BT_CFG
-
-local BT_DEFAULTS = {
-    Enable   = true,
-    Bypass   = true, -- client-side report/verify noise shield
-    Power    = 60,   -- 10..100 bullet bias strength
-    Hip      = 40,   -- 10..40 metres, hipfire
-    Scope    = 150,  -- 30..180 metres, ADS
-    IgKnock  = true,
-    IgBot    = true,
+    VisCache     = {},
+    MeshCache    = {},
+    Records      = {},
+    Colors       = {},
 }
 
-for k, v in pairs(BT_DEFAULTS) do
-    if BT_CFG[k] == nil then BT_CFG[k] = v end
+_G.SAState = SA_State
+
+local SA_CFG = _G.SAConfig or {}
+_G.SAConfig = SA_CFG
+
+local SA_DEFAULTS = {
+    Aimbot         = true,
+    AimMode        = 3,    -- 1 = ADS, 2 = hip, 3 = both
+    AimTrigger     = 1,    -- 1 = while firing, 2 = always
+    AimBone        = 2,    -- 1 = head, 2 = chest, 3 = stomach
+    AimFOV         = 18,   -- hip FOV, percent of half screen width
+    AimFOVADS      = 14,   -- ADS/scope FOV
+    AimSpeed       = 24,   -- hip smooth speed 5..100
+    AimSpeedADS    = 28,   -- ADS/scope smooth speed 5..100
+    AimDistance    = 150,  -- meters
+    AimVis         = true,
+    AimIgnoreKnock = true,
+    AimIgnoreBot   = false,
+
+    ESP            = true,
+    ESPGlow        = true,
+    ESPBox         = true,
+    ESPHealth      = true,
+    ESPDistance    = true,
+    ESPMaxDistance = 400,  -- meters
+
+    FPS120         = true,
+    IPadView       = true,
+    IPadFOV        = 120,
+
+    Bypass         = true,
+}
+
+for k, v in pairs(SA_DEFAULTS) do
+    if SA_CFG[k] == nil then SA_CFG[k] = v end
 end
 
-local function BT_Clamp(v, lo, hi, def)
-    v = tonumber(v) or def
+local function SA_Clamp(v, lo, hi)
+    v = tonumber(v) or lo
     if v < lo then return lo end
     if v > hi then return hi end
     return v
 end
 
-local function BT_ClampConfig()
-    BT_CFG.Power = BT_Clamp(BT_CFG.Power, 10, 100, 60)
-    BT_CFG.Hip   = BT_Clamp(BT_CFG.Hip, 10, 40, 40)
-    BT_CFG.Scope = BT_Clamp(BT_CFG.Scope, 30, 180, 150)
+local function SA_ClampConfig()
+    SA_CFG.AimMode        = math.floor(SA_Clamp(SA_CFG.AimMode, 1, 3) + 0.5)
+    SA_CFG.AimTrigger     = math.floor(SA_Clamp(SA_CFG.AimTrigger, 1, 2) + 0.5)
+    SA_CFG.AimBone        = math.floor(SA_Clamp(SA_CFG.AimBone, 1, 3) + 0.5)
+    SA_CFG.AimFOV         = SA_Clamp(SA_CFG.AimFOV, 5, 60)
+    SA_CFG.AimFOVADS      = SA_Clamp(SA_CFG.AimFOVADS, 5, 60)
+    SA_CFG.AimSpeed       = SA_Clamp(SA_CFG.AimSpeed, 5, 100)
+    SA_CFG.AimSpeedADS    = SA_Clamp(SA_CFG.AimSpeedADS, 5, 100)
+    SA_CFG.AimDistance    = SA_Clamp(SA_CFG.AimDistance, 10, 300)
+    SA_CFG.ESPMaxDistance = SA_Clamp(SA_CFG.ESPMaxDistance, 100, 800)
+    SA_CFG.IPadFOV        = SA_Clamp(SA_CFG.IPadFOV, 90, 120)
 end
-BT_ClampConfig()
+SA_ClampConfig()
 
--- ---------------------------------------------------------------------------
--- Persistent settings (multi-path + timestamp, newest config wins)
--- ---------------------------------------------------------------------------
-
-local function BT_GetConfigCandidates()
+local function SA_GetConfigCandidates()
     local list = {}
     local seen = {}
     local function addDir(base)
         if type(base) ~= "string" or base == "" then return end
-        local p = base:gsub("/+$", "") .. "/SohailPG1_bullet.cfg"
+        local p = base:gsub("/+$", "") .. "/SohailPG1_safe.cfg"
         if not seen[p] then
             seen[p] = true
             list[#list + 1] = p
@@ -834,35 +879,47 @@ local function BT_GetConfigCandidates()
         end
     end)
 
+    -- Game-writable UE4 dirs used by working mod configs. Writing to every
+    -- candidate prevents one stale/blocked file from restoring old values.
     pcall(function()
         local pkg = tostring(packageName or "")
-        local roots = {}
+        local dataRoots = {}
         if pkg ~= "" then
-            roots[#roots + 1] = "/storage/emulated/0/Android/data/" .. pkg .. "/files"
-            roots[#roots + 1] = "/sdcard/Android/data/" .. pkg .. "/files"
+            dataRoots[#dataRoots + 1] = "/storage/emulated/0/Android/data/" .. pkg .. "/files"
+            dataRoots[#dataRoots + 1] = "/sdcard/Android/data/" .. pkg .. "/files"
         end
-        for i = 1, #roots do
-            local root = roots[i]:gsub("/+$", "")
+
+        for i = 1, #dataRoots do
+            local root = dataRoots[i]:gsub("/+$", "")
             local ue = root .. "/UE4Game/ShadowTrackerExtra/ShadowTrackerExtra/Saved"
             addDir(ue .. "/Paks")
             addDir(ue .. "/SaveGames")
         end
+
         addDir("/storage/emulated/0/Documents/ShadowTrackerExtra/Saved/Paks")
+        addDir("/storage/emulated/0/Documents/ShadowTrackerExtra/Saved/Paks/puffer_temp")
+        addDir("/storage/emulated/0/Documents/ShadowTrackerExtra/Saved/SaveGames")
         addDir("/Documents/ShadowTrackerExtra/Saved/Paks")
+        addDir("/Documents/ShadowTrackerExtra/Saved/Paks/puffer_temp")
         addDir("ShadowTrackerExtra/Saved/Paks")
+        addDir("ShadowTrackerExtra/Saved/SaveGames")
         addDir("../../ShadowTrackerExtra/Saved/Paks")
+        addDir("../../ShadowTrackerExtra/Saved/SaveGames")
+        addDir("../../../ShadowTrackerExtra/Saved/Paks")
+        addDir("../../../ShadowTrackerExtra/Saved/SaveGames")
     end)
 
     addDir("/storage/emulated/0")
     addDir("/sdcard")
     addDir(".")
+
     return list
 end
 
-local BT_ConfigPath = _G.BTConfigPath
-local BT_LastSaveStamp = 0
+local SA_ConfigPath = _G.SAConfigPath
+local SA_LastSaveStamp = 0
 
-local function BT_ReadConfigFile(path)
+local function SA_ReadConfigFile(path)
     local ok, f = pcall(io.open, path, "r")
     if not ok or not f then return nil end
 
@@ -875,8 +932,8 @@ local function BT_ReadConfigFile(path)
             if k == "SavedAt" then
                 local n = tonumber(v)
                 if n then stamp = n end
-            elseif k and BT_DEFAULTS[k] ~= nil then
-                if type(BT_DEFAULTS[k]) == "boolean" then
+            elseif k and SA_DEFAULTS[k] ~= nil then
+                if type(SA_DEFAULTS[k]) == "boolean" then
                     values[k] = (v == "1" or v == "true")
                 else
                     local n = tonumber(v)
@@ -892,22 +949,24 @@ local function BT_ReadConfigFile(path)
     return values, stamp, count
 end
 
-local function BT_LoadConfig()
-    local candidates = BT_GetConfigCandidates()
-    if BT_ConfigPath then
+local function SA_LoadConfig()
+    local candidates = SA_GetConfigCandidates()
+    if SA_ConfigPath then
         local found = false
         for i = 1, #candidates do
-            if candidates[i] == BT_ConfigPath then found = true break end
+            if candidates[i] == SA_ConfigPath then found = true break end
         end
-        if not found then table.insert(candidates, 1, BT_ConfigPath) end
+        if not found then table.insert(candidates, 1, SA_ConfigPath) end
     end
 
     local bestValues, bestPath
     local bestStamp, bestCount, bestScore = 0, 0, -1
+
     for i = 1, #candidates do
         local path = candidates[i]
-        local values, stamp, count = BT_ReadConfigFile(path)
+        local values, stamp, count = SA_ReadConfigFile(path)
         if values then
+            -- Newest saved file wins. Key count breaks ties from partial writes.
             local score = stamp * 10000 + count
             if score > bestScore then
                 bestValues = values
@@ -920,25 +979,34 @@ local function BT_LoadConfig()
     end
 
     if bestValues then
-        for k, v in pairs(bestValues) do BT_CFG[k] = v end
-        BT_ConfigPath = bestPath
-        BT_LastSaveStamp = bestStamp
-        _G.BTConfigPath = bestPath
-        _G.BTConfigSavedAt = bestStamp
+        for k, v in pairs(bestValues) do
+            SA_CFG[k] = v
+        end
+        SA_ConfigPath = bestPath
+        SA_LastSaveStamp = bestStamp
+        _G.SAConfigPath = bestPath
+        _G.SAConfigSavedAt = bestStamp
+        _G.SAConfigLoadedKeys = bestCount
     end
-    BT_ClampConfig()
+
+    SA_ClampConfig()
 end
 
-local function BT_WriteConfigTo(path, stamp)
+local function SA_WriteConfigTo(path, stamp)
     local ok, f = pcall(io.open, path, "w")
     if not ok or not f then return false end
+
     local wrote = false
     local okWrite = pcall(function()
         f:write("SavedAt=" .. tostring(stamp) .. "\n")
-        for k, def in pairs(BT_DEFAULTS) do
-            local v = BT_CFG[k]
-            if type(def) == "boolean" then v = v and "1" or "0" end
-            f:write(k .. "=" .. tostring(v) .. "\n")
+        for k, def in pairs(SA_DEFAULTS) do
+            local v = SA_CFG[k]
+            if type(def) == "boolean" then
+                v = v and "1" or "0"
+            else
+                v = tostring(v)
+            end
+            f:write(k .. "=" .. v .. "\n")
         end
         f:close()
         wrote = true
@@ -947,54 +1015,123 @@ local function BT_WriteConfigTo(path, stamp)
     return wrote
 end
 
-local function BT_SaveConfig(force)
-    if not force and not BT_State.Dirty then return end
-    local stamp = (os.time and os.time()) or 0
-    if stamp <= BT_LastSaveStamp then stamp = BT_LastSaveStamp + 1 end
-    BT_LastSaveStamp = stamp
+local function SA_SaveConfig(force)
+    if not force and not SA_State.Dirty then return end
 
-    local candidates = BT_GetConfigCandidates()
-    if BT_ConfigPath then
+    local stamp = (os.time and os.time()) or 0
+    if stamp <= SA_LastSaveStamp then stamp = SA_LastSaveStamp + 1 end
+    SA_LastSaveStamp = stamp
+
+    local candidates = SA_GetConfigCandidates()
+    if SA_ConfigPath then
         local found = false
         for i = 1, #candidates do
-            if candidates[i] == BT_ConfigPath then found = true break end
+            if candidates[i] == SA_ConfigPath then found = true break end
         end
-        if not found then table.insert(candidates, 1, BT_ConfigPath) end
+        if not found then table.insert(candidates, 1, SA_ConfigPath) end
     end
 
     local firstSaved = nil
     for i = 1, #candidates do
-        if BT_WriteConfigTo(candidates[i], stamp) and not firstSaved then
+        if SA_WriteConfigTo(candidates[i], stamp) and not firstSaved then
             firstSaved = candidates[i]
         end
     end
 
     if firstSaved then
-        BT_ConfigPath = firstSaved
-        BT_State.Dirty = false
-        BT_State.LastSave = os.clock()
-        _G.BTConfigPath = firstSaved
-        _G.BTConfigSavedAt = stamp
+        SA_ConfigPath = firstSaved
+        SA_LastSaveStamp = stamp
+        SA_State.Dirty = false
+        SA_State.LastSave = os.clock()
+        _G.SAConfigPath = firstSaved
+        _G.SAConfigSavedAt = stamp
         return true
     end
     return false
 end
 
-local function BT_MarkDirty()
-    BT_State.Dirty = true
+local function SA_MarkDirty()
+    SA_State.Dirty = true
 end
 
-local function BT_Notify(msg)
+local function SA_Notify(msg)
+    pcall(Notify, "[SAFE] " .. tostring(msg))
+end
+
+-- Only explicit user action resets values. Normal save/load never calls this.
+local function SA_ResetConfig()
+    for k, v in pairs(SA_DEFAULTS) do
+        SA_CFG[k] = v
+    end
+    SA_ClampConfig()
+    SA_MarkDirty()
+    pcall(SA_SaveConfig, true)
+    SA_Notify("SETTINGS RESET TO DEFAULT")
+end
+
+local function SA_IsExpired()
+    local ok, now = pcall(os.date, "*t")
+    if not ok or type(now) ~= "table" then return false end
+    if now.year ~= SA_EXPIRY_YEAR then return now.year > SA_EXPIRY_YEAR end
+    if now.month ~= SA_EXPIRY_MONTH then return now.month > SA_EXPIRY_MONTH end
+    if now.day ~= SA_EXPIRY_DAY then return now.day > SA_EXPIRY_DAY end
+    if now.hour ~= SA_EXPIRY_HOUR then return now.hour > SA_EXPIRY_HOUR end
+    if now.min ~= SA_EXPIRY_MINUTE then return now.min > SA_EXPIRY_MINUTE end
+    return now.sec >= SA_EXPIRY_SECOND
+end
+
+local SA_Expired = SA_IsExpired()
+_G.SA_Expired = SA_Expired
+
+local function SA_ShowWelcomePopup()
+    if _G.SAWelcomeShown then return end
+    _G.SAWelcomeShown = true
+    if SA_Expired then return end
+
+    local title = "WELCOME @SohailPG1"
+    local msg = "Welcome to @SohailPG1 VIP MOD\n\nTelegram: @SohailPG1"
+
+    local shown = false
     pcall(function()
-        if type(Notify) == "function" then Notify("[BULLET TRACK] " .. tostring(msg)) end
+        local Msg = require("client.slua.logic.common.logic_common_msg_box")
+        if Msg and type(Msg.Show) == "function" then
+            Msg.Show(1, title, msg, function()
+                pcall(function()
+                    local Web = require("client.slua.logic.url.logic_webview_sdk")
+                    if Web and type(Web.OpenURL) == "function" then
+                        Web:OpenURL("https://t.me/SohailPG1")
+                    end
+                end)
+            end, function() end, "TELEGRAM", "CLOSE")
+            shown = true
+        end
     end)
+
+    if not shown then
+        pcall(SA_Notify, msg)
+    end
 end
 
--- ---------------------------------------------------------------------------
--- Runtime helpers
--- ---------------------------------------------------------------------------
+local function SA_ShowExpiredPopup()
+    if _G.SAExpiredShown then return end
+    _G.SAExpiredShown = true
 
-local function BT_Valid(obj)
+    local msg = "Lua expired. Please renew your license.\nTelegram: @SohailPG1"
+    local shown = false
+    pcall(function()
+        local Msg = require("client.slua.logic.common.logic_common_msg_box")
+        if Msg and type(Msg.Show) == "function" then
+            Msg.Show(1, "EXPIRED", msg, function() end, function() end, "OK", "CLOSE")
+            shown = true
+        end
+    end)
+
+    if not shown then
+        pcall(SA_Notify, msg)
+    end
+end
+
+local function SA_Valid(obj)
     if not obj then return false end
     local sl = rawget(_G, "slua")
     if sl and type(sl.isValid) == "function" then
@@ -1004,7 +1141,7 @@ local function BT_Valid(obj)
     return true
 end
 
-local function BT_Key(actor)
+local function SA_Key(actor)
     if not actor then return "nil" end
     local k = nil
     pcall(function()
@@ -1014,79 +1151,48 @@ local function BT_Key(actor)
     return k or tostring(actor)
 end
 
-local function BT_GetWeapon(player)
-    local weapon = nil
+local function SA_GetPlayer()
+    local p = nil
     pcall(function()
-        if type(player.GetCurrentWeapon) == "function" then weapon = player:GetCurrentWeapon() end
+        if GameplayData and GameplayData.GetPlayerCharacter then
+            p = GameplayData.GetPlayerCharacter()
+        end
     end)
-    if not BT_Valid(weapon) then
-        local wm = player.WeaponManagerComponent
-        weapon = wm and wm.CurrentWeaponReplicated
-    end
-    if not BT_Valid(weapon) and type(player.GetCurrentShootWeapon) == "function" then
-        weapon = player:GetCurrentShootWeapon()
-    end
-    return weapon
+    if SA_Valid(p) then return p end
+    return nil
 end
 
-local function BT_WeaponID(weapon)
-    local wid = 0
+local function SA_GetPC(player)
+    local pc = nil
     pcall(function()
-        if type(weapon.GetWeaponID) == "function" then wid = tonumber(weapon:GetWeaponID()) or 0 end
+        if SA_Valid(player) and type(player.GetPlayerControllerSafety) == "function" then
+            pc = player:GetPlayerControllerSafety()
+        end
+        if not SA_Valid(pc) and GameplayData and GameplayData.GetPlayerController then
+            pc = GameplayData.GetPlayerController()
+        end
     end)
-    if wid == 0 then
-        pcall(function()
-            if type(weapon.GetItemDefineID) == "function" then
-                local def = weapon:GetItemDefineID()
-                if def then wid = tonumber(def.TypeSpecificID) or 0 end
-            end
-        end)
-    end
-    return wid
+    if SA_Valid(pc) then return pc end
+    return nil
 end
 
-local function BT_IsGunWeapon(weapon)
-    if not BT_Valid(weapon) then return false end
-    local wid = BT_WeaponID(weapon)
-    -- grenades / melee / unknown items skip
-    if wid >= 602000 and wid < 603000 then return false end
-    if wid > 0 and (wid < 100000 or wid >= 200000) then return false end
-    return true
+local function SA_GetTeam(ch)
+    local team = nil
+    pcall(function()
+        if type(ch.GetTeamID) == "function" then team = ch:GetTeamID() end
+        if team == nil and ch.TeamID ~= nil then team = ch.TeamID end
+    end)
+    return team
 end
 
-local function BT_GetEntity(weapon)
-    local entity = nil
-    if not BT_Valid(weapon) then return nil end
-    local fields = {
-        "ShootWeaponEntityComp", "ShootWeaponEntityComponent",
-        "ShootWeaponComponent", "STExtraShootWeaponComponent",
-    }
-    for i = 1, #fields do
-        if not BT_Valid(entity) then
-            local ok, v = pcall(function() return weapon[fields[i]] end)
-            if ok and BT_Valid(v) then entity = v end
-        end
-    end
-    if not BT_Valid(entity) then
-        local methods = { "GetShootWeaponComponent", "GetShootWeaponEntityComponent" }
-        for i = 1, #methods do
-            if not BT_Valid(entity) and type(weapon[methods[i]]) == "function" then
-                local ok, v = pcall(weapon[methods[i]], weapon)
-                if ok and BT_Valid(v) then entity = v end
-            end
-        end
-    end
-    return entity
-end
-
-local function BT_IsBot(ch)
+local function SA_IsBot(ch)
     local bot = false
     pcall(function()
         if ch.bIsAI == true or ch.IsAI == true then bot = true end
         if type(ch.IsBot) == "function" and ch:IsBot() then bot = true end
         local ps = ch.PlayerState
-        if not BT_Valid(ps) and type(ch.GetPlayerState) == "function" then ps = ch:GetPlayerState() end
-        if BT_Valid(ps) then
+        if not SA_Valid(ps) and type(ch.GetPlayerState) == "function" then ps = ch:GetPlayerState() end
+        if SA_Valid(ps) then
             if ps.bIsABot == true or ps.bIsBot == true then bot = true end
             if type(ps.IsBot) == "function" and ps:IsBot() then bot = true end
         end
@@ -1094,7 +1200,7 @@ local function BT_IsBot(ch)
     return bot
 end
 
-local function BT_IsKnocked(ch)
+local function SA_IsKnocked(ch)
     local knocked = false
     pcall(function()
         if ch.bIsDying == true or ch.bIsKnocked == true then knocked = true end
@@ -1104,17 +1210,30 @@ local function BT_IsKnocked(ch)
     return knocked
 end
 
-local function BT_AppendArray(dst, seen, arr)
+local function SA_IsAlive(ch)
+    if not SA_Valid(ch) then return false end
+    local alive = true
+    pcall(function()
+        if ch.bIsDead == true or ch.bDead == true then alive = false end
+        if type(ch.IsDead) == "function" and ch:IsDead() then alive = false end
+        if type(ch.IsAlive) == "function" and not ch:IsAlive() then alive = false end
+        if ch.Health ~= nil and tonumber(ch.Health) and tonumber(ch.Health) <= 0 then alive = false end
+    end)
+    return alive
+end
+
+local function SA_AppendArray(dst, seen, arr)
     if arr == nil then return end
     local function add(v)
-        if BT_Valid(v) then
-            local k = BT_Key(v)
+        if SA_Valid(v) then
+            local k = SA_Key(v)
             if not seen[k] then
                 seen[k] = true
                 dst[#dst + 1] = v
             end
         end
     end
+
     if type(arr) == "table" then
         local n = #arr
         if n > 0 then
@@ -1138,706 +1257,1059 @@ local function BT_AppendArray(dst, seen, arr)
     end
 end
 
-local function BT_RefreshEnemies()
+local function SA_RefreshEnemies()
     local now = os.clock()
-    local player = nil
-    pcall(function()
-        if GameplayData and GameplayData.GetPlayerCharacter then player = GameplayData.GetPlayerCharacter() end
-    end)
-    if not BT_Valid(player) then
-        BT_State.Enemies = {}
-        BT_State.EnemyOwner = nil
-        BT_State.LastEnemy = now
+    local player = SA_GetPlayer()
+    if not SA_Valid(player) then
+        SA_State.Enemies = {}
+        SA_State.EnemyOwner = nil
+        SA_State.LastEnemy = now
         return {}, nil
     end
 
-    if BT_State.EnemyOwner == player and (now - BT_State.LastEnemy) < 0.30 then
-        return BT_State.Enemies, player
+    if SA_State.EnemyOwner == player and (now - SA_State.LastEnemy) < 0.30 then
+        return SA_State.Enemies, player
     end
 
     local list = {}
-    local seen = { [BT_Key(player)] = true }
+    local seen = {}
     pcall(function()
         if GameplayData then
             if GameplayData.GetAllPlayerCharacters then
-                BT_AppendArray(list, seen, GameplayData.GetAllPlayerCharacters())
+                SA_AppendArray(list, seen, GameplayData.GetAllPlayerCharacters())
             end
             if #list == 0 and GameplayData.GameCharacters then
-                BT_AppendArray(list, seen, GameplayData.GameCharacters)
+                SA_AppendArray(list, seen, GameplayData.GameCharacters)
             end
         end
         if #list == 0 and Game and type(Game.GetAllPlayerPawns) == "function" then
-            BT_AppendArray(list, seen, Game:GetAllPlayerPawns())
+            SA_AppendArray(list, seen, Game:GetAllPlayerPawns())
         end
     end)
 
-    BT_State.Enemies = list
-    BT_State.EnemyOwner = player
-    BT_State.LastEnemy = now
+    SA_State.Enemies = list
+    SA_State.EnemyOwner = player
+    SA_State.LastEnemy = now
     return list, player
 end
 
--- ---------------------------------------------------------------------------
--- ANTI-REPORT SHIELD (client-side, conservative)
--- Sirf local report / shoot-verify noise rokta hai. Server-side detection
--- Lua se block nahi hoti — ye "full bypass" nahi, ek chhoti shield hai.
--- ---------------------------------------------------------------------------
+local SA_UGameplayStatics = nil
+local SA_KismetMath = nil
+local SA_Vector2DClass = nil
+local SA_LinearColorClass = nil
+local SA_OriginalFOV = nil
 
-local BP = _G.BTBypassRT or { applied = false, saved = {} }
-_G.BTBypassRT = BP
-BP.saved = BP.saved or {}
-BP.applied = false
-
-local function BP_Nop() end
-local function BP_True() return true end
-
-local function BP_Save(tbl, key)
-    if type(tbl) ~= "table" then return nil, false end
-    local ok, v = pcall(function() return tbl[key] end)
-    return v, ok and v ~= nil
+local function SA_GetUGameplayStatics()
+    if not SA_UGameplayStatics then
+        pcall(function() SA_UGameplayStatics = import("GameplayStatics") end)
+    end
+    return SA_UGameplayStatics
 end
 
-local function BP_Set(tbl, key, value)
-    local old, had = BP_Save(tbl, key)
-    if had then BP.saved[#BP.saved + 1] = { tbl = tbl, key = key, val = old, had = true } end
-    pcall(function() tbl[key] = value end)
+local function SA_GetKismetMath()
+    if not SA_KismetMath then
+        pcall(function() SA_KismetMath = import("KismetMathLibrary") end)
+    end
+    return SA_KismetMath
 end
 
-local function BP_SetFuncs(tbl, names, value)
-    if type(tbl) ~= "table" then return end
+local function SA_NewVector2D()
+    if not SA_Vector2DClass then
+        pcall(function() SA_Vector2DClass = import("Vector2D") end)
+    end
+    if SA_Vector2DClass then
+        local ok, v = pcall(SA_Vector2DClass)
+        if ok and v then return v end
+    end
+    return { X = 0, Y = 0 }
+end
+
+local function SA_Color(r, g, b, a)
+    if not SA_LinearColorClass then
+        pcall(function() SA_LinearColorClass = import("LinearColor") end)
+    end
+    if SA_LinearColorClass then
+        local ok, c = pcall(SA_LinearColorClass, r, g, b, a)
+        if ok and c then return c end
+    end
+    return { R = r, G = g, B = b, A = a }
+end
+
+local function SA_GetViewport()
+    local now = os.clock()
+    if SA_State.Viewport and (now - SA_State.LastViewport) < 2.0 then
+        return SA_State.Viewport
+    end
+
+    local vp = nil
+    pcall(function()
+        local ui_util = require("client.common.ui_util")
+        if ui_util and type(ui_util.GetViewportSize) == "function" then
+            vp = ui_util.GetViewportSize()
+        end
+    end)
+
+    if (not vp or not vp.X or vp.X < 200) then
+        pcall(function()
+            local WLL = import("WidgetLayoutLibrary")
+            local pc = GameplayData and GameplayData.GetPlayerController and GameplayData.GetPlayerController()
+            if WLL and type(WLL.GetViewportSize) == "function" then
+                vp = WLL.GetViewportSize(pc)
+            end
+        end)
+    end
+
+    if vp and vp.X and vp.X >= 200 and vp.Y and vp.Y >= 200 then
+        SA_State.Viewport = vp
+        SA_State.LastViewport = now
+        return vp
+    end
+    return nil
+end
+
+local function SA_GetCamera(pc)
+    local camMgr, camLoc, camRot = nil, nil, nil
+    pcall(function()
+        local GS = SA_GetUGameplayStatics()
+        if GS and type(GS.GetPlayerCameraManager) == "function" then
+            camMgr = GS.GetPlayerCameraManager(pc, 0)
+        end
+        if not SA_Valid(camMgr) and pc then
+            camMgr = pc.PlayerCameraManager or pc.MyCameraManager
+        end
+        if SA_Valid(camMgr) then
+            if type(camMgr.GetCameraLocation) == "function" then camLoc = camMgr:GetCameraLocation() end
+            if type(camMgr.GetCameraRotation) == "function" then camRot = camMgr:GetCameraRotation() end
+        end
+    end)
+    return camMgr, camLoc, camRot
+end
+
+local function SA_Project(pc, worldPos)
+    if not worldPos then return nil end
+    local screen = SA_NewVector2D()
+    local ok = false
+    pcall(function()
+        ok = pc:ProjectWorldLocationToScreen(worldPos, screen, false)
+    end)
+    if ok and screen and screen.X and screen.Y and (screen.X > 0 or screen.Y > 0) then
+        return screen
+    end
+    return nil
+end
+
+local function SA_Distance(a, b)
+    local d = nil
+    pcall(function()
+        if type(a.GetDistanceTo) == "function" then d = a:GetDistanceTo(b) end
+    end)
+    if d and d > 0 then return d end
+    d = 0
+    pcall(function()
+        local p1 = a:K2_GetActorLocation()
+        local p2 = b:K2_GetActorLocation()
+        if p1 and p2 then
+            local dx = p1.X - p2.X
+            local dy = p1.Y - p2.Y
+            local dz = p1.Z - p2.Z
+            d = math.sqrt(dx * dx + dy * dy + dz * dz)
+        end
+    end)
+    return d
+end
+
+local function SA_Visible(pc, enemy)
+    if not SA_Valid(pc) or not SA_Valid(enemy) then return false end
+    local key = SA_Key(enemy)
+    local now = os.clock()
+    local c = SA_State.VisCache[key]
+    if c and (now - c.t) < 0.35 then return c.v end
+    local visible = true
+    pcall(function()
+        if type(pc.LineOfSightTo) == "function" then
+            visible = pc:LineOfSightTo(enemy) and true or false
+        end
+    end)
+    SA_State.VisCache[key] = { v = visible, t = now }
+    return visible
+end
+
+local function SA_BoneNames(boneIdx)
+    if boneIdx == 1 then return { "head", "neck_01" } end
+    if boneIdx == 3 then return { "spine_01", "pelvis" } end
+    return { "spine_03", "spine_02", "spine_01" }
+end
+
+local function SA_BonePos(enemy, boneIdx)
+    local names = SA_BoneNames(boneIdx)
+    local pos = nil
     for i = 1, #names do
-        local old, had = BP_Save(tbl, names[i])
-        if had and type(old) == "function" then
-            BP.saved[#BP.saved + 1] = { tbl = tbl, key = names[i], val = old, had = true }
-            pcall(function() tbl[names[i]] = value end)
-        end
-    end
-end
-
-_G.BulletTrackBypassOff = function()
-    local rt = _G.BTBypassRT
-    if not rt then return end
-    for i = #rt.saved, 1, -1 do
-        local e = rt.saved[i]
+        local name = names[i]
         pcall(function()
-            if e.had then e.tbl[e.key] = e.val else e.tbl[e.key] = nil end
-        end)
-        rt.saved[i] = nil
-    end
-    rt.applied = false
-end
-
-local BP_BlockedPackets = {
-    ReportAimFlow = 1, ReportHitFlow = 1, ReportFireArms = 1,
-    ReportVerifyInfoFlow = 1, ReportAttackFlow = 1, ReportSecAttackFlow = 1,
-    ShootVerifyFailed = 1, BulletHitInfoUploadData = 1,
-    tss_sdk_report = 1, report_unrealnet_exception = 1,
-    SwiftHawk = 1, ClientSwiftHawk = 1, ClientSwiftHawkWithParams = 1,
-    ClientSecMrpcsFlow = 1, ReportPlayerBehavior = 1,
-    AntiCheatReport = 1, CheatDetection = 1,
-}
-
-local BP_BlockedRPC = {
-    RPC_Server_SwiftHawk = 1,
-    RPC_Server_ClientSwiftHawkWithParams = 1,
-    RPC_Server_ReportSimulateCharacterLocation = 1,
-    RPC_Client_ShootVertifyRes = 1,
-}
-
-local function BP_Apply()
-    if BP.applied then return end
-
-    -- SwiftHawk telemetry
-    local swift = { "SwiftHawk", "ClientSwiftHawk", "ClientSwiftHawkWithParams", "SendSwiftHawkData" }
-    for i = 1, #swift do
-        BP_Set(_G, swift[i], BP_Nop)
-        if type(_G.GameplayCallbacks) == "table" then
-            BP_Set(_G.GameplayCallbacks, swift[i], BP_Nop)
-        end
-    end
-
-    -- Shoot verification / bullet hit upload
-    local okSub, sub = pcall(require, "GameLua.Dev.Subsystem.ShootVerifySubSystemClient")
-    if okSub and type(sub) == "table" then
-        BP_SetFuncs(sub, { "OnShootVerifyFailed", "SendVerifyData", "ReportBulletHit", "UploadHitInfo" }, BP_Nop)
-        BP_SetFuncs(sub, { "VerifyShot" }, BP_True)
-    end
-    if type(_G.BulletHitInfoUploadData) == "table" then
-        BP_SetFuncs(_G.BulletHitInfoUploadData, { "Report", "Send", "Upload" }, BP_Nop)
-    end
-
-    -- Gameplay report callbacks
-    if type(_G.GameplayCallbacks) == "table" then
-        BP_SetFuncs(_G.GameplayCallbacks, {
-            "ReportAttackFlow", "ReportSecAttackFlow", "ReportFireArms",
-            "ReportVerifyInfoFlow", "ReportMrpcsFlow", "ReportPlayerBehavior",
-            "ReportAimFlow", "ReportHitFlow", "ReportCircleFlow",
-            "SendTssSdkAntiDataToLobby", "SwiftHawk", "ClientSwiftHawk",
-            "ClientSwiftHawkWithParams",
-        }, BP_Nop)
-    end
-
-    -- Network packet filter (sirf upar wale names)
-    if type(NetUtil) == "table" and type(NetUtil.SendPacket) == "function" then
-        local orig = NetUtil.SendPacket
-        BP.saved[#BP.saved + 1] = { tbl = NetUtil, key = "SendPacket", val = orig, had = true }
-        NetUtil.SendPacket = function(name, ...)
-            if BP_BlockedPackets[name] then return nil end
-            return orig(name, ...)
-        end
-    end
-    if type(_G.SendRPC) == "function" then
-        local orig = _G.SendRPC
-        BP.saved[#BP.saved + 1] = { tbl = _G, key = "SendRPC", val = orig, had = true }
-        _G.SendRPC = function(name, ...)
-            if BP_BlockedRPC[name] then return nil end
-            return orig(name, ...)
-        end
-    end
-
-    BP.applied = true
-end
-
--- ---------------------------------------------------------------------------
--- Native bullet-bias state (crosshair untouched)
--- ---------------------------------------------------------------------------
-
-local BT_RT = _G.BTBulletRT or {}
-_G.BTBulletRT = BT_RT
-BT_RT.forbid = BT_RT.forbid or {}
-BT_RT.weapons = BT_RT.weapons or {}
-BT_RT.nextApply = BT_RT.nextApply or 0
-BT_RT.nextFilter = BT_RT.nextFilter or 0
-
-local function BT_SaveFields(obj, keys)
-    local saved = {}
-    if not BT_Valid(obj) then return saved end
-    for i = 1, #keys do
-        local ok, v = pcall(function() return obj[keys[i]] end)
-        if ok then saved[keys[i]] = v end
-    end
-    return saved
-end
-
-local function BT_RestoreFields(obj, saved)
-    if not BT_Valid(obj) or not saved then return end
-    for k, v in pairs(saved) do
-        pcall(function() obj[k] = v end)
-    end
-end
-
-local function BT_RestoreWithFallback(obj, saved, fallback)
-    if not BT_Valid(obj) then return end
-    if saved then
-        for k, v in pairs(saved) do
-            pcall(function() obj[k] = v end)
-        end
-    end
-    if fallback then
-        for k, v in pairs(fallback) do
-            if not saved or saved[k] == nil then
-                pcall(function() obj[k] = v end)
+            if type(enemy.GetBonePos) == "function" then
+                pos = enemy:GetBonePos(name, { X = 0, Y = 0, Z = 0 })
             end
-        end
+        end)
+        if pos and pos.X and (pos.X ~= 0 or pos.Y ~= 0 or pos.Z ~= 0) then return pos end
+        pos = nil
+        pcall(function()
+            if type(enemy.GetSocketLocation) == "function" then
+                pos = enemy:GetSocketLocation(name)
+            end
+        end)
+        if pos and pos.X and (pos.X ~= 0 or pos.Y ~= 0 or pos.Z ~= 0) then return pos end
+        pos = nil
     end
-end
-
-local function BT_Write(obj, field, value)
-    if not BT_Valid(obj) then return end
-    pcall(function() obj[field] = value end)
-end
-
-_G.BulletTrackOff = function()
-    local rt = _G.BTBulletRT
-    if not rt then return end
 
     pcall(function()
-        -- 1) enemy forbid restore
-        for _, st in pairs(rt.forbid or {}) do
-            if st and BT_Valid(st.pawn) then
-                local restore = st.orig
-                if restore == nil then restore = false end
-                pcall(function() st.pawn.bForbidAutoAimAt = restore end)
-            end
-        end
-        rt.forbid = {}
-
-        -- 2) weapon AutoAimingConfig restore
-        for entity, saved in pairs(rt.weapons or {}) do
-            if BT_Valid(entity) and entity.AutoAimingConfig then
-                for name, fields in pairs(saved.ranges or {}) do
-                    local cfg = entity.AutoAimingConfig[name]
-                    if cfg then
-                        for k, v in pairs(fields) do
-                            pcall(function() cfg[k] = v end)
-                        end
-                    end
-                end
-                if saved.bones ~= nil then
-                    pcall(function() entity.AutoAimingConfig.Bones = saved.bones end)
-                end
-                if saved.maxAngle ~= nil then
-                    pcall(function() entity.AutoAimingConfig.MaxAngle = saved.maxAngle end)
-                end
-                if saved.onlyHead ~= nil then
-                    pcall(function() entity.AutoAimingConfig.bOnlyHitHead = saved.onlyHead end)
-                end
-            end
-        end
-        rt.weapons = {}
-
-        -- 3) AutoAimComp restore (bones pehle, phir fields)
-        local aac = rt.aac
-        if BT_Valid(aac) then
-            if rt.bonesRef ~= nil then
-                pcall(function()
-                    local b = rt.bonesRef
-                    if rt.bonesMutated and b and b.Clear and b.Add and rt.bonesList and #rt.bonesList > 0 then
-                        b:Clear()
-                        for _, bone in ipairs(rt.bonesList) do b:Add(bone) end
-                    end
-                    aac.Bones = b
-                end)
-            end
-            if BT_Valid(aac.AimAssistConfig) and rt.assistState then
-                BT_RestoreFields(aac.AimAssistConfig, rt.assistState)
-            end
-            BT_RestoreWithFallback(aac, rt.aacState, {
-                bEnableAutoAim = false, bAutoAim = false,
-                bModifyCrossHair = false, bOnlyHitHead = false,
-            })
-        end
-
-        -- 4) Character + controller restore
-        if BT_Valid(rt.char) then
-            BT_RestoreWithFallback(rt.char, rt.charState, {
-                bEnableAutoAim = false, bAutoAim = false, ActiveAimScopeRange = false,
-            })
-        end
-        if BT_Valid(rt.pc) then
-            BT_RestoreWithFallback(rt.pc, rt.pcState, {
-                bAutoAimAt = false, bEnableAutoAim = false,
-            })
+        local loc = enemy:K2_GetActorLocation()
+        if loc then
+            local zAdd = 40
+            if boneIdx == 1 then zAdd = 70 elseif boneIdx == 3 then zAdd = 20 end
+            pos = { X = loc.X, Y = loc.Y, Z = loc.Z + zAdd }
         end
     end)
-
-    rt.active = false
-    rt.pc, rt.char, rt.aac = nil, nil, nil
-    rt.pcState, rt.charState, rt.aacState, rt.assistState = nil, nil, nil, nil
-    rt.bonesRef, rt.bonesList = nil, nil
-    rt.bonesAssigned, rt.bonesMutated = nil, nil
-    rt.nextApply, rt.nextFilter = 0, 0
+    return pos
 end
 
-local function BT_CaptureAAC(rt, char)
-    local aac = nil
-    pcall(function() aac = char.AutoAimComp end)
-    if not BT_Valid(aac) then
-        pcall(function() aac = char.BP_AutoAimingComponent end)
-    end
-    rt.aac = aac
-    rt.bonesAssigned, rt.bonesMutated = false, false
-    rt.aacState, rt.assistState, rt.bonesRef, rt.bonesList = nil, nil, nil, nil
-
-    if BT_Valid(aac) then
-        rt.aacState = BT_SaveFields(aac, {
-            "AutoAimType", "bEnableAutoAim", "bAutoAim", "bModifyCrossHair",
-            "bOnlyHitHead", "HeadBoneName", "ChestBoneName", "PelvisBoneName",
-            "AimTargetSocket", "AimSocketName",
-        })
-        pcall(function() rt.bonesRef = aac.Bones end)
-        rt.bonesList = {}
-        pcall(function()
-            local b = aac.Bones
-            if b and type(b.Num) == "function" and type(b.Get) == "function" then
-                for i = 0, b:Num() - 1 do
-                    local bone = b:Get(i)
-                    if bone then rt.bonesList[#rt.bonesList + 1] = bone end
-                end
-            end
-        end)
-        pcall(function()
-            rt.assistState = BT_SaveFields(aac.AimAssistConfig, {
-                "HeadPriority", "ChestPriority", "PelvisPriority",
-            })
-        end)
-    end
+local function SA_GetViewportCenter()
+    local vp = SA_GetViewport()
+    if not vp then return nil, nil, nil end
+    return vp.X * 0.5, vp.Y * 0.5, vp
 end
 
-local function BT_ApplyPlayerState(pc, char)
-    local rt = BT_RT
+-- ============================================================================
+-- SMOOTH AIMBOT
+-- ============================================================================
 
-    if rt.char ~= char or rt.pc ~= pc then
-        if rt.active then _G.BulletTrackOff() end
-        rt.pc, rt.char = pc, char
-        rt.pcState = BT_SaveFields(pc, { "AutoAimType", "bAutoAimAt", "bEnableAutoAim" })
-        rt.charState = BT_SaveFields(char, {
-            "bEnableAutoAim", "bAutoAim", "ActiveAimScopeRange",
-            "AimTargetSocket", "AimSocketName",
-        })
-        BT_CaptureAAC(rt, char)
-        rt.active = true
-    elseif not BT_Valid(rt.aac) then
-        BT_CaptureAAC(rt, char)
-    end
+local function SA_AimOnce()
+    if SA_Expired then return end
+    local cfg = SA_CFG
+    if not cfg.Aimbot then return end
 
-    -- Controller: native client aim path (bullet bias, no camera rotation)
+    local player = SA_GetPlayer()
+    if not SA_Valid(player) or not SA_IsAlive(player) then return end
+
+    local pc = SA_GetPC(player)
+    if not SA_Valid(pc) then return end
+
+    local firing = false
     pcall(function()
-        pc.AutoAimType = 1
-        pc.bAutoAimAt = true
-        pc.bEnableAutoAim = true
+        firing = player.bIsWeaponFiring == true or pc.bIsWeaponFiring == true
     end)
 
-    -- Character: head socket, crosshair untouched
+    local ads = false
     pcall(function()
-        char.bEnableAutoAim = true
-        char.bAutoAim = true
-        char.ActiveAimScopeRange = true
-        char.AimTargetSocket = "head"
-        char.AimSocketName = "head"
+        ads = player.bIsGunADS == true or player.bIsWeaponAiming == true
     end)
 
-    local aac = rt.aac
-    if BT_Valid(aac) then
-        pcall(function()
-            aac.AutoAimType = 1
-            aac.bEnableAutoAim = true
-            aac.bAutoAim = true
-            aac.bModifyCrossHair = false   -- crosshair moves nahi
-            aac.bOnlyHitHead = true
-            aac.HeadBoneName = "Head"
-            aac.ChestBoneName = "Head"
-            aac.PelvisBoneName = "Head"
-            if aac.AimAssistConfig then
-                aac.AimAssistConfig.HeadPriority = 100
-                aac.AimAssistConfig.ChestPriority = 1
-                aac.AimAssistConfig.PelvisPriority = 1
-            end
-        end)
-
-        -- Head bones: native array warna manual
-        local assigned = false
-        pcall(function()
-            if char.AimHeadBoneArray then
-                aac.Bones = char.AimHeadBoneArray
-                assigned = true
-            end
-        end)
-        if assigned then
-            rt.bonesAssigned = true
-        else
-            pcall(function()
-                local b = aac.Bones
-                if b and type(b.Clear) == "function" and type(b.Add) == "function" then
-                    b:Clear()
-                    b:Add("neck_01")
-                    b:Add("head")
-                    rt.bonesMutated = true
-                end
-            end)
-        end
-    end
-end
-
-local function BT_ApplyWeapon(entity, power, hipDist, scopeDist, ignoreKnock)
-    if not BT_Valid(entity) or not entity.AutoAimingConfig then return false end
-    local cfg = entity.AutoAimingConfig
-    local rt = BT_RT
-
-    local saved = rt.weapons[entity]
-    if not saved then
-        saved = { ranges = {}, bones = nil, maxAngle = nil, onlyHead = nil }
-        local fields = {
-            "Speed", "RangeRate", "SpeedRate", "RangeRateSight", "SpeedRateSight",
-            "CenterSpeedRate", "CrouchRate", "ProneRate", "DyingRate",
-            "AdsorbActiveMinRange", "AdsorbMinAttenuationDis", "AdsorbMaxAttenuationDis",
-            "AdsorbMaxRange", "adsorbMaxAttenuationDis", "adsorbMaxRange",
-        }
-        local names = { "OuterRange", "InnerRange", "ScopeRange" }
-        for i = 1, #names do
-            local rangeCfg = cfg[names[i]]
-            if BT_Valid(rangeCfg) then
-                saved.ranges[names[i]] = BT_SaveFields(rangeCfg, fields)
-            end
-        end
-        local okB, b = pcall(function() return cfg.Bones end)
-        if okB then saved.bones = b end
-        local okMA, ma = pcall(function() return cfg.MaxAngle end)
-        if okMA then saved.maxAngle = ma end
-        local okOH, oh = pcall(function() return cfg.bOnlyHitHead end)
-        if okOH then saved.onlyHead = oh end
-        rt.weapons[entity] = saved
+    if not (firing and ads) then
+        SA_State.SprayTime = 0
     end
 
-    local ratio = power / 100.0
-    local speed = 7.0 + ratio * 5.0
-    local rangeRate = 2.0 + ratio * 1.6
-    local speedRate = 1.8 + ratio * 1.4
-    local rangeSight = 2.0 + ratio * 1.6
-    local speedSight = 1.6 + ratio * 1.2
-    local center = 1.0 + ratio * 0.5
-    local crouch = 1.1 + ratio * 0.4
-    local prone = 1.05 + ratio * 0.35
-    local dying = ignoreKnock and 0 or (1.0 + ratio * 0.5)
-    local hipUnits = hipDist * 100.0
-    local scopeUnits = scopeDist * 100.0
-    -- Crosshair door ho to bhi bullet head tak jaye: yaw/pitch angle limit badhaya
-    local maxAngle = 30.0 + ratio * 60.0
+    if cfg.AimMode == 1 and not ads then return end
+    if cfg.AimMode == 2 and ads then return end
+    if cfg.AimTrigger == 1 and not firing then return end
+    if cfg.AimTrigger == 2 and cfg.AimMode == 1 and not ads then return end
 
-    pcall(function() cfg.Bones = { "Head", "Head", "Head" } end)
-    pcall(function() cfg.MaxAngle = maxAngle end)
-    pcall(function() cfg.bOnlyHitHead = true end)
+    local centerX, centerY, viewport = SA_GetViewportCenter()
+    if not viewport then return end
 
-    local outer = cfg.OuterRange
-    if BT_Valid(outer) then
-        BT_Write(outer, "Speed", speed)
-        BT_Write(outer, "RangeRate", rangeRate)
-        BT_Write(outer, "SpeedRate", speedRate)
-        BT_Write(outer, "RangeRateSight", rangeSight)
-        BT_Write(outer, "SpeedRateSight", speedSight)
-        BT_Write(outer, "CenterSpeedRate", center)
-        BT_Write(outer, "CrouchRate", crouch)
-        BT_Write(outer, "ProneRate", prone)
-        BT_Write(outer, "DyingRate", dying)
-        BT_Write(outer, "AdsorbMaxAttenuationDis", hipUnits)
-        BT_Write(outer, "adsorbMaxAttenuationDis", hipUnits)
-    end
+    local enemies = SA_RefreshEnemies()
+    if not enemies or #enemies == 0 then return end
 
-    local inner = cfg.InnerRange
-    if BT_Valid(inner) then
-        BT_Write(inner, "Speed", speed)
-        BT_Write(inner, "RangeRate", rangeRate)
-        BT_Write(inner, "SpeedRateSight", speedSight)
-        BT_Write(inner, "RangeRateSight", rangeSight)
-        BT_Write(inner, "SpeedRate", speedRate)
-        BT_Write(inner, "CenterSpeedRate", center)
-        BT_Write(inner, "ProneRate", prone)
-        BT_Write(inner, "DyingRate", dying)
-        BT_Write(inner, "AdsorbMaxAttenuationDis", hipUnits)
-        BT_Write(inner, "adsorbMaxAttenuationDis", hipUnits)
-    end
+    local myTeam = SA_GetTeam(player)
+    local maxWorldDist = cfg.AimDistance * 100
+    local fovValue = ads and (cfg.AimFOVADS or cfg.AimFOV) or cfg.AimFOV
+    local fovPixels = (fovValue / 100.0) * (viewport.X * 0.5)
+    local fovPixelsSq = fovPixels * fovPixels
 
-    local scope = cfg.ScopeRange
-    if BT_Valid(scope) then
-        BT_Write(scope, "RangeRate", 0)
-        BT_Write(scope, "RangeRateSight", rangeSight)
-        BT_Write(scope, "SpeedRate", 0)
-        BT_Write(scope, "SpeedRateSight", speedSight)
-        BT_Write(scope, "DyingRate", dying)
-        BT_Write(scope, "AdsorbMaxRange", scopeUnits)
-        BT_Write(scope, "adsorbMaxRange", scopeUnits)
-        BT_Write(scope, "AdsorbMaxAttenuationDis", scopeUnits)
-        BT_Write(scope, "adsorbMaxAttenuationDis", scopeUnits)
-    end
-
-    return true
-end
-
-local function BT_UpdateForbid(maxDist, ignoreKnock, ignoreBots)
-    local enemies = BT_RefreshEnemies()
-    local rt = BT_RT
-    local seen = {}
+    local bestEnemy, bestPos, bestScreen, bestScore = nil, nil, nil, 999999999
+    local checked = 0
 
     for i = 1, #enemies do
         local enemy = enemies[i]
-        if BT_Valid(enemy) then
-            local key = BT_Key(enemy)
-            seen[key] = true
-            local st = rt.forbid[key]
-            if not st then
-                local ok, orig = pcall(function() return enemy.bForbidAutoAimAt end)
-                st = { pawn = enemy, orig = (ok and orig) or false, applied = false }
-                rt.forbid[key] = st
-            else
-                st.pawn = enemy
+        if SA_Valid(enemy) and enemy ~= player and checked < 16 then
+            local sameTeam = false
+            if myTeam ~= nil then
+                local et = SA_GetTeam(enemy)
+                if et ~= nil and et == myTeam then sameTeam = true end
             end
 
-            local blocked = false
-            if ignoreBots and BT_IsBot(enemy) then blocked = true end
-            if not blocked and ignoreKnock and BT_IsKnocked(enemy) then blocked = true end
+            if not sameTeam and SA_IsAlive(enemy) then
+                local skip = false
+                if cfg.AimIgnoreKnock and SA_IsKnocked(enemy) then skip = true end
+                if not skip and cfg.AimIgnoreBot and SA_IsBot(enemy) then skip = true end
 
-            if blocked then
-                if st.applied ~= true then
-                    pcall(function() enemy.bForbidAutoAimAt = true end)
-                    st.applied = true
+                if not skip then
+                    local dist = SA_Distance(player, enemy)
+                    if dist > 0 and dist <= maxWorldDist then
+                        checked = checked + 1
+                        if not cfg.AimVis or SA_Visible(pc, enemy) then
+                            local pos = SA_BonePos(enemy, cfg.AimBone)
+                            if pos then
+                                local screen = SA_Project(pc, pos)
+                                if screen then
+                                    local dx = screen.X - centerX
+                                    local dy = screen.Y - centerY
+                                    local sq = dx * dx + dy * dy
+                                    if sq <= fovPixelsSq then
+                                        local score = math.sqrt(sq)
+                                        if score < bestScore then
+                                            bestScore = score
+                                            bestEnemy = enemy
+                                            bestPos = pos
+                                            bestScreen = screen
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
                 end
-            elseif st.applied == true then
-                local restore = st.orig
-                if restore == nil then restore = false end
-                pcall(function() enemy.bForbidAutoAimAt = restore end)
-                st.applied = false
             end
         end
     end
 
-    for key, st in pairs(rt.forbid) do
-        if not seen[key] then
-            if st.applied == true and BT_Valid(st.pawn) then
-                local restore = st.orig
-                if restore == nil then restore = false end
-                pcall(function() st.pawn.bForbidAutoAimAt = restore end)
-            end
-            rt.forbid[key] = nil
+    if not SA_Valid(bestEnemy) or not bestPos or not bestScreen then return end
+
+    local camMgr, camLoc, camRot = SA_GetCamera(pc)
+    if not camLoc then return end
+
+    local look = nil
+    pcall(function()
+        local KML = SA_GetKismetMath()
+        if KML and type(KML.FindLookAtRotation) == "function" then
+            look = KML.FindLookAtRotation(camLoc, bestPos)
         end
-    end
-end
-
-function _G.BulletTrackHeadTick()
-    if not BT_CFG.Enable then
-        if BT_RT.active then _G.BulletTrackOff() end
-        pcall(_G.BulletTrackBypassOff)
-        return false
-    end
-    if BT_CFG.Bypass then
-        pcall(BP_Apply)
-    else
-        pcall(_G.BulletTrackBypassOff)
-    end
-
-    local ok, handled = pcall(function()
-        local player = nil
-        pcall(function()
-            if GameplayData and GameplayData.GetPlayerCharacter then
-                player = GameplayData.GetPlayerCharacter()
-            end
-        end)
-        if not BT_Valid(player) then return false end
-
-        local pc = nil
-        pcall(function()
-            if type(player.GetPlayerControllerSafety) == "function" then
-                pc = player:GetPlayerControllerSafety()
-            end
-            if not BT_Valid(pc) and GameplayData and GameplayData.GetPlayerController then
-                pc = GameplayData.GetPlayerController()
-            end
-        end)
-        if not BT_Valid(pc) then return false end
-
-        local weapon = BT_GetWeapon(player)
-        if not BT_IsGunWeapon(weapon) then return false end
-        local entity = BT_GetEntity(weapon)
-
-        local power = BT_Clamp(BT_CFG.Power, 10, 100, 60)
-        local hipDist = BT_Clamp(BT_CFG.Hip, 10, 40, 40)
-        local scopeDist = BT_Clamp(BT_CFG.Scope, 30, 180, 150)
-        local ignoreKnock = BT_CFG.IgKnock ~= false
-        local ignoreBots = BT_CFG.IgBot ~= false
-
-        local now = os.clock()
-        if not BT_RT.active or now >= (BT_RT.nextApply or 0) then
-            BT_ApplyPlayerState(pc, player)
-            if BT_Valid(entity) then
-                BT_ApplyWeapon(entity, power, hipDist, scopeDist, ignoreKnock)
-            end
-            BT_RT.nextApply = now + 0.5
-        end
-
-        if now >= (BT_RT.nextFilter or 0) then
-            local isADS = false
-            pcall(function()
-                if type(player.IsGunADS) == "function" then isADS = player:IsGunADS() == true end
-            end)
-            if not isADS then pcall(function() isADS = player.bIsGunADS == true end) end
-            BT_UpdateForbid(isADS and scopeDist or hipDist, ignoreKnock, ignoreBots)
-            BT_RT.nextFilter = now + 0.25
-        end
-
-        return true
     end)
-    return ok and handled == true
-end
+    if not look then return end
 
-local function BT_Tick()
-    if not BT_CFG.Enable then
-        if BT_RT.active then _G.BulletTrackOff() end
-        pcall(_G.BulletTrackBypassOff)
+    local current = nil
+    pcall(function() current = pc:GetControlRotation() end)
+    if not current then return end
+
+    local now = os.clock()
+    local dt = now - (SA_State.LastAim or now)
+    SA_State.LastAim = now
+    if dt <= 0 or dt > 0.08 then dt = 0.02 end
+
+    if firing and ads then
+        SA_State.SprayTime = (SA_State.SprayTime or 0) + dt
+    else
+        SA_State.SprayTime = 0
+    end
+
+    -- Scoped long-spray compensation: counter recoil rise (bullets going above head)
+    if ads and firing and (SA_State.SprayTime or 0) > 0.10 then
+        local t = SA_State.SprayTime - 0.10
+        local extraDown = math.min(t * 2.5, 3.5)
+        if (cfg.AimBone or 2) == 1 then
+            extraDown = extraDown + math.min(t * 0.8, 1.2)
+        end
+        look.Pitch = look.Pitch - extraDown
+    end
+
+    local dYaw = look.Yaw - current.Yaw
+    local dPitch = look.Pitch - current.Pitch
+    if dYaw > 180 then dYaw = dYaw - 360 elseif dYaw < -180 then dYaw = dYaw + 360 end
+    if dPitch > 180 then dPitch = dPitch - 360 elseif dPitch < -180 then dPitch = dPitch + 360 end
+
+    if math.abs(dYaw) < 0.08 and math.abs(dPitch) < 0.08 and (SA_State.SprayTime or 0) < 0.10 then
         return
     end
+
+    local speed = SA_Clamp(ads and (cfg.AimSpeedADS or cfg.AimSpeed) or cfg.AimSpeed, 5, 100)
+    local response = 1.25 + speed * 0.115
+    if ads and firing then
+        response = response + 1.4
+    end
+    local alpha = 1.0 - math.exp(-response * dt)
+    if alpha < 0.015 then alpha = 0.015 end
+    if alpha > 0.38 then alpha = 0.38 end
+
+    local stepYaw = dYaw * alpha
+    local stepPitch = dPitch * alpha
+    local maxStep = 0.75 + speed * 0.045
+    if ads and firing then
+        maxStep = maxStep + 0.7
+    end
+    local mag = math.sqrt(stepYaw * stepYaw + stepPitch * stepPitch)
+    if mag > maxStep and mag > 0 then
+        local scale = maxStep / mag
+        stepYaw = stepYaw * scale
+        stepPitch = stepPitch * scale
+    end
+
+    local finalPitch = current.Pitch + stepPitch
+    local finalYaw = current.Yaw + stepYaw
+    local rot = nil
+    pcall(function()
+        local R = import("Rotator")
+        if R then rot = R(finalPitch, finalYaw, 0) end
+    end)
+
+    pcall(function()
+        if rot then
+            pc:SetControlRotation(rot, "SmoothAim")
+        else
+            pc:SetControlRotation({ Pitch = finalPitch, Yaw = finalYaw, Roll = 0 }, "SmoothAim")
+        end
+    end)
+end
+
+-- ============================================================================
+-- NATIVE ESP / CHAMS
+-- ============================================================================
+
+local SA_InGameMarkTools = nil
+local function SA_GetMarkTools()
+    if not SA_InGameMarkTools then
+        pcall(function() SA_InGameMarkTools = require("GameLua.Mod.BaseMod.Common.InGameMarkTools") end)
+    end
+    return SA_InGameMarkTools
+end
+
+local function SA_MakeVector(x, y, z)
+    if type(FVector) == "function" then
+        local ok, v = pcall(FVector, x, y, z)
+        if ok and v then return v end
+    end
+    return { X = x, Y = y, Z = z }
+end
+
+local SA_DistanceMarkConfig = {
+    UIPathName = "/Game/Mod/EvoBase/BluePrints/UIBP/QuickSign/QuickSign_TipHitEnemy_UIBP_New.QuickSign_TipHitEnemy_UIBP_New_C",
+    MaxWidgetNum = 99,
+    MaxShowDistance = 6000000,
+    bBindOutScreen = true,
+    bBindBlocked = true,
+    bIsBindingActor = true,
+    BindSocketName = "head",
+    bUseLuaWorldSocketName = true,
+    WorldPositionOffset = SA_MakeVector(0, 0, 50),
+    bNeedPreLoad = true,
+    Priority = 2,
+}
+
+local function SA_InitMarkConfig()
+    if SA_State.MarkCfgReady then return true end
     local now = os.clock()
-    if now - BT_State.LastTick < 0.02 then return end
-    BT_State.LastTick = now
-    pcall(_G.BulletTrackHeadTick)
+    if (now - (SA_State.LastMarkTry or 0)) < 4.0 then return false end
+    SA_State.LastMarkTry = now
+
+    local applied = false
+    pcall(function()
+        local Tools = require("GameLua.Mod.BaseMod.Common.GamePlayTools")
+        local function apply(cfg)
+            if type(cfg) ~= "table" then return end
+            cfg[1006] = cfg[1006] or {}
+            cfg[1006].bBindBlocked = true
+            cfg[1006].bBindOutScreen = true
+            cfg[1006].MaxWidgetNum = 99
+            cfg[1006].MaxShowDistance = 6000000
+            cfg[1006].bScaleByDistance = false
+            cfg[1006].BindSocketName = "root"
+            cfg[1006].bUseLuaWorldSocketName = true
+            cfg[1006].WorldPositionOffset = SA_MakeVector(0, 0, -30)
+            cfg[9999] = SA_DistanceMarkConfig
+            applied = true
+        end
+
+        local current = Tools.GetCurrentConfig("ScreenMarkConfig")
+        apply(current)
+
+        for name, mod in pairs(package.loaded) do
+            if type(name) == "string" and name:find("ScreenMarkConfig", 1, true) and type(mod) == "table" then
+                apply(mod)
+            end
+        end
+
+        local MarkTools = SA_GetMarkTools()
+        if MarkTools and MarkTools.ScreenMarkManager and MarkTools.ScreenMarkManager.OnInitMarkGroupData then
+            pcall(function() MarkTools.ScreenMarkManager:OnInitMarkGroupData(9999) end)
+        end
+    end)
+
+    if applied then
+        SA_State.MarkCfgReady = true
+        return true
+    end
+    return false
 end
 
--- ---------------------------------------------------------------------------
--- Native menu
--- ---------------------------------------------------------------------------
-
-local function BT_MenuBool(key)
-    return function() return BT_CFG[key] == true end
+local function SA_AddMark(id, enemy)
+    local mark = nil
+    pcall(function()
+        local Tools = SA_GetMarkTools()
+        if Tools and type(Tools.ClientAddMapMark) == "function" then
+            mark = Tools.ClientAddMapMark(id, SA_MakeVector(0, 0, 0), 0, "", 4, enemy)
+        end
+    end)
+    return mark
 end
 
-local function BT_MenuToggle(key)
+local function SA_RemoveMark(mark)
+    if not mark then return end
+    pcall(function()
+        local Tools = SA_GetMarkTools()
+        if not Tools then return end
+        if type(Tools.HideMapMark) == "function" then pcall(function() Tools.HideMapMark(mark) end) end
+        if type(Tools.RemoveMapMark) == "function" then pcall(function() Tools.RemoveMapMark(mark) end) end
+        if type(Tools.ClientRemoveMapMark) == "function" then pcall(function() Tools.ClientRemoveMapMark(mark) end) end
+    end)
+end
+
+local function SA_ApplyDye(mesh, hidden)
+    if not SA_Valid(mesh) then return end
+    local visibleColor = SA_State.Colors.Visible
+    local hiddenColor = SA_State.Colors.Hidden
+    if not visibleColor then
+        visibleColor = SA_Color(8.0, 0.15, 0.10, 1.0)
+        hiddenColor = SA_Color(0.8, 0.0, 1.6, 1.0)
+        SA_State.Colors.Visible = visibleColor
+        SA_State.Colors.Hidden = hiddenColor
+    end
+    local color = hidden and hiddenColor or visibleColor
+
+    pcall(function()
+        if type(mesh.SetDrawDyeing) == "function" then
+            mesh:SetDrawDyeing(true)
+            if type(mesh.SetDrawDyeingMode) == "function" then mesh:SetDrawDyeingMode(1) end
+            if type(mesh.SetVisibleDyeingColor) == "function" then mesh:SetVisibleDyeingColor(color) end
+            if type(mesh.SetOccludedDyeingColor) == "function" then mesh:SetOccludedDyeingColor(hiddenColor) end
+            if type(mesh.SetDyeingColorFadeDistance) == "function" then mesh:SetDyeingColorFadeDistance(99999.0) end
+            if type(mesh.SetDyeingColorMinMaxDistance) == "function" then mesh:SetDyeingColorMinMaxDistance(0.0, 99999.0) end
+        end
+        if type(mesh.SetDrawHighlight) == "function" then mesh:SetDrawHighlight(true) end
+        if type(mesh.OverrideHighlightColor) == "function" then mesh:OverrideHighlightColor(color) end
+        if type(mesh.SetHighlightCanBeOccluded) == "function" then mesh:SetHighlightCanBeOccluded(false) end
+        if type(mesh.SetDrawIdeaOutline) == "function" then mesh:SetDrawIdeaOutline(true) end
+        if type(mesh.SetIdeaOutlineNew) == "function" then mesh:SetIdeaOutlineNew(true) end
+        if type(mesh.SetIdeaOutlineOcclusionHighlight) == "function" then mesh:SetIdeaOutlineOcclusionHighlight(true) end
+        if type(mesh.OverrideIdeaOutlineColor) == "function" then mesh:OverrideIdeaOutlineColor(color) end
+        if type(mesh.SetIdeaOutlineOcclusionColor) == "function" then mesh:SetIdeaOutlineOcclusionColor(hiddenColor) end
+        if type(mesh.OverrideIdeaOutlineThickness) == "function" then mesh:OverrideIdeaOutlineThickness(12.0) end
+        if type(mesh.SetIdeaOverrideOutlineAndOcclusion) == "function" then mesh:SetIdeaOverrideOutlineAndOcclusion(true) end
+        if type(mesh.SetRenderCustomDepth) == "function" then mesh:SetRenderCustomDepth(true) end
+        if type(mesh.SetCustomDepthStencilValue) == "function" then mesh:SetCustomDepthStencilValue(255) end
+    end)
+end
+
+local function SA_ClearDye(mesh)
+    if not SA_Valid(mesh) then return end
+    pcall(function()
+        if type(mesh.SetDrawDyeing) == "function" then mesh:SetDrawDyeing(false) end
+        if type(mesh.SetDrawHighlight) == "function" then mesh:SetDrawHighlight(false) end
+        if type(mesh.SetDrawIdeaOutline) == "function" then mesh:SetDrawIdeaOutline(false) end
+        if type(mesh.SetIdeaOutlineNew) == "function" then mesh:SetIdeaOutlineNew(false) end
+        if type(mesh.SetRenderCustomDepth) == "function" then mesh:SetRenderCustomDepth(false) end
+        if type(mesh.SetCustomDepthStencilValue) == "function" then mesh:SetCustomDepthStencilValue(0) end
+    end)
+end
+
+local function SA_GetMeshes(enemy, key)
+    local now = os.clock()
+    local cache = SA_State.MeshCache[key]
+    if cache and (now - cache.t) < 4.0 then
+        local valid = {}
+        for i = 1, #cache.list do
+            if SA_Valid(cache.list[i]) then valid[#valid + 1] = cache.list[i] end
+        end
+        cache.list = valid
+        return valid
+    end
+
+    local list = {}
+    local seen = {}
+    local function add(mesh)
+        if SA_Valid(mesh) then
+            local k = tostring(mesh)
+            if not seen[k] then seen[k] = true; list[#list + 1] = mesh end
+        end
+    end
+
+    pcall(function() add(enemy.Mesh) end)
+    pcall(function()
+        local av = enemy.CharacterAvatarComp2_BP or enemy.AvatarComponent2
+        if SA_Valid(av) and type(av.GetMeshCompBySlot) == "function" then
+            for slot = 0, 7 do
+                local mesh = nil
+                pcall(function() mesh = av:GetMeshCompBySlot(slot) end)
+                add(mesh)
+            end
+        end
+    end)
+
+    if #list == 0 then
+        pcall(function()
+            local SkeletalMeshClass = import("SkeletalMeshComponent")
+            if SkeletalMeshClass and type(enemy.GetComponentsByClass) == "function" then
+                local comps = enemy:GetComponentsByClass(SkeletalMeshClass)
+                if comps then
+                    local count = type(comps.Num) == "function" and comps:Num() or #comps
+                    for i = 1, count do
+                        local comp = type(comps.Get) == "function" and comps:Get(i - 1) or comps[i]
+                        add(comp)
+                    end
+                end
+            end
+        end)
+    end
+
+    SA_State.MeshCache[key] = { list = list, t = now }
+    return list
+end
+
+local function SA_ClearRecord(key, rec)
+    if not rec then return end
+    pcall(function()
+        if rec.hp then SA_RemoveMark(rec.hp) end
+        if rec.dist then SA_RemoveMark(rec.dist) end
+        if rec.box and SA_Valid(rec.actor) and type(rec.actor.Replay_SetVisiableOfFrameUI) == "function" then
+            rec.actor:Replay_SetVisiableOfFrameUI(false)
+        end
+    end)
+    if rec.dye then
+        for mesh in pairs(rec.dye) do pcall(SA_ClearDye, mesh) end
+    end
+    SA_State.Records[key] = nil
+    SA_State.MeshCache[key] = nil
+    SA_State.VisCache[key] = nil
+end
+
+local function SA_ClearAllESP()
+    for key, rec in pairs(SA_State.Records or {}) do
+        SA_ClearRecord(key, rec)
+    end
+    SA_State.Records = {}
+    SA_State.MeshCache = {}
+    SA_State.VisCache = {}
+    SA_State.ESPActive = false
+end
+
+local function SA_SHOWBox(enemy, rec, on)
+    if not SA_Valid(enemy) then return end
+    pcall(function()
+        if on then
+            if type(enemy.Replay_CreateEnemyFrameUI) == "function" then
+                local exists = false
+                if type(enemy.Replay_IsEnemyFrameUIExisted) == "function" then
+                    pcall(function() exists = enemy:Replay_IsEnemyFrameUIExisted() end)
+                end
+                if not exists then pcall(function() enemy:Replay_CreateEnemyFrameUI(true, true) end) end
+            end
+            if type(enemy.Replay_SetVisiableOfFrameUI) == "function" then
+                enemy:Replay_SetVisiableOfFrameUI(true)
+            end
+            rec.box = true
+        else
+            if type(enemy.Replay_SetVisiableOfFrameUI) == "function" then
+                enemy:Replay_SetVisiableOfFrameUI(false)
+            end
+            rec.box = false
+        end
+    end)
+end
+
+local function SA_UpdateESP()
+    local cfg = SA_CFG
+    if not cfg.ESP then
+        if SA_State.ESPActive then SA_ClearAllESP() end
+        return
+    end
+
+    local now = os.clock()
+    if (now - (SA_State.LastEsp or 0)) < 0.30 then return end
+    SA_State.LastEsp = now
+
+    local player = SA_GetPlayer()
+    local pc = SA_GetPC(player)
+    if not SA_Valid(player) or not SA_Valid(pc) then
+        if SA_State.ESPActive then SA_ClearAllESP() end
+        return
+    end
+
+    SA_InitMarkConfig()
+    local enemies = SA_RefreshEnemies()
+    if not enemies or #enemies == 0 then
+        SA_ClearAllESP()
+        return
+    end
+
+    local myTeam = SA_GetTeam(player)
+    local maxWorldDist = cfg.ESPMaxDistance * 100
+    local active = {}
+    local nearest = {}
+
+    for i = 1, #enemies do
+        local enemy = enemies[i]
+        if SA_Valid(enemy) and enemy ~= player and SA_IsAlive(enemy) then
+            local sameTeam = false
+            if myTeam ~= nil then
+                local et = SA_GetTeam(enemy)
+                if et ~= nil and et == myTeam then sameTeam = true end
+            end
+            if not sameTeam then
+                local dist = SA_Distance(player, enemy)
+                if dist > 0 and dist <= maxWorldDist then
+                    nearest[#nearest + 1] = { enemy = enemy, key = SA_Key(enemy), dist = dist }
+                end
+            end
+        end
+    end
+
+    table.sort(nearest, function(a, b) return a.dist < b.dist end)
+
+    local limit = #nearest
+    if limit > 24 then limit = 24 end
+
+    for i = 1, limit do
+        local item = nearest[i]
+        local enemy = item.enemy
+        local key = item.key
+        active[key] = true
+        local rec = SA_State.Records[key]
+        if not rec then
+            rec = { actor = enemy }
+            SA_State.Records[key] = rec
+        else
+            rec.actor = enemy
+        end
+
+        if cfg.ESPGlow then
+            local hidden = not SA_Visible(pc, enemy)
+            local meshes = SA_GetMeshes(enemy, key)
+            rec.dye = rec.dye or {}
+            for m = 1, #meshes do
+                local mesh = meshes[m]
+                if SA_Valid(mesh) and rec.dye[mesh] ~= hidden then
+                    SA_ApplyDye(mesh, hidden)
+                    rec.dye[mesh] = hidden
+                end
+            end
+        elseif rec.dye then
+            for mesh in pairs(rec.dye) do pcall(SA_ClearDye, mesh) end
+            rec.dye = nil
+        end
+
+        if cfg.ESPHealth then
+            if not rec.hp and now >= (rec.hpRetry or 0) then
+                rec.hp = SA_AddMark(1006, enemy)
+                rec.hpRetry = now + (rec.hp and 900 or 4)
+            end
+        elseif rec.hp then
+            SA_RemoveMark(rec.hp)
+            rec.hp = nil
+        end
+
+        if cfg.ESPDistance then
+            if not rec.dist and now >= (rec.distRetry or 0) then
+                rec.dist = SA_AddMark(9999, enemy)
+                rec.distRetry = now + (rec.dist and 900 or 4)
+            end
+        elseif rec.dist then
+            SA_RemoveMark(rec.dist)
+            rec.dist = nil
+        end
+
+        if cfg.ESPBox then
+            SA_SHOWBox(enemy, rec, true)
+        elseif rec.box then
+            SA_SHOWBox(enemy, rec, false)
+        end
+    end
+
+    for key, rec in pairs(SA_State.Records) do
+        if not active[key] then
+            SA_ClearRecord(key, rec)
+        end
+    end
+
+    SA_State.ESPActive = true
+end
+
+-- ============================================================================
+-- 120 FPS + IPAD VIEW
+-- ============================================================================
+
+local function SA_GetGameInstance()
+    local gi = nil
+    pcall(function()
+        local DB = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB")
+        if DB and type(DB.GetGameInstance) == "function" then
+            gi = DB:GetGameInstance()
+            if not SA_Valid(gi) and type(DB.GetGameInstance) == "function" then
+                gi = DB.GetGameInstance()
+            end
+        end
+    end)
+    if not SA_Valid(gi) then
+        pcall(function()
+            local GS = SA_GetUGameplayStatics()
+            if GS and type(GS.GetGameInstance) == "function" then
+                local world = nil
+                pcall(function() world = slua.getWorld() end)
+                if world then gi = GS.GetGameInstance(world) end
+            end
+        end)
+    end
+    if SA_Valid(gi) then return gi end
+    return nil
+end
+
+local function SA_SetMaxFPS(fps)
+    local gi = SA_GetGameInstance()
+    if not SA_Valid(gi) or type(gi.ExecuteCMD) ~= "function" then return false end
+    pcall(function()
+        gi:ExecuteCMD("t.MaxFPS", tostring(fps))
+        gi:ExecuteCMD("r.FrameRateLimit", tostring(fps))
+    end)
+    return true
+end
+
+local function SA_ApplyDisplay()
+    local cfg = SA_CFG
+    local now = os.clock()
+    if (now - (SA_State.LastDisplay or 0)) < 0.20 then return end
+    SA_State.LastDisplay = now
+
+    if cfg.FPS120 then
+        if not SA_State.FPSApplied or (now - (SA_State.LastFPS or 0)) > 8.0 then
+            if SA_SetMaxFPS(120) then
+                SA_State.FPSApplied = true
+                SA_State.LastFPS = now
+            end
+        end
+    elseif SA_State.FPSApplied then
+        if SA_SetMaxFPS(60) then
+            SA_State.FPSApplied = false
+            SA_State.LastFPS = now
+        end
+    end
+
+    pcall(function()
+        local SC = require("client.logic.setting.setting_config")
+        if SC and SC.TpViewValue and (SC.TpViewValue.max or 0) < 120 then SC.TpViewValue.max = 120 end
+        if SC and SC.FpViewValue and (SC.FpViewValue.max or 0) < 120 then SC.FpViewValue.max = 120 end
+        local DB = require("client.slua.umg.NewSetting.GraphicsNew.GraphicSettingDB")
+        if DB and DB.TpViewValue and (DB.TpViewValue.max or 0) < 120 then DB.TpViewValue.max = 120 end
+    end)
+
+    local player = SA_GetPlayer()
+    if SA_Valid(player) then
+        local cam = player.ThirdPersonCameraComponent
+        if SA_Valid(cam) and not player.bIsWeaponAiming then
+            local current = nil
+            pcall(function() current = cam.FieldOfView end)
+            if cfg.IPadView then
+                if not SA_OriginalFOV and current and current >= 40 and current <= 120 then
+                    SA_OriginalFOV = current
+                end
+                local fov = SA_Clamp(cfg.IPadFOV, 90, 120)
+                if not current or math.abs(current - fov) > 0.2 then
+                    pcall(function() cam.FieldOfView = fov end)
+                    pcall(function() if type(cam.SetFieldOfView) == "function" then cam:SetFieldOfView(fov) end end)
+                    SA_State.IPadApplied = true
+                end
+            elseif SA_State.IPadApplied then
+                local restore = SA_OriginalFOV or 80
+                pcall(function()
+                    if type(cam.SetFieldOfView) == "function" then
+                        cam:SetFieldOfView(restore)
+                    else
+                        cam.FieldOfView = restore
+                    end
+                end)
+                SA_State.IPadApplied = false
+            end
+        end
+    end
+end
+
+-- ============================================================================
+-- CONSERVATIVE STEALTH LAYER
+-- This is a local anti-report / anti-scan layer. It does not touch heartbeat,
+-- movement, or gameplay RPCs. No client-side layer can guarantee no ban.
+-- ============================================================================
+
+local SA_PatchedReportModules = {}
+
+local function SA_PatchReportModules()
+    local paths = {
+        "GameLua.Mod.BaseMod.Client.Security.ClientReportPlayerSubsystem",
+        "GameLua.Mod.Library.GamePlay.Avatar.Exception.AvatarExceptionPlayerInst",
+        "client.slua.logic.report.ClientToolsReport",
+    }
+    for i = 1, #paths do
+        local sub = package.loaded[paths[i]]
+        if type(sub) == "table" and not SA_PatchedReportModules[sub] then
+            SA_PatchedReportModules[sub] = true
+            for k, v in pairs(sub) do
+                if type(k) == "string" and type(v) == "function" then
+                    if string.lower(k):find("report", 1, true) then
+                        pcall(function() sub[k] = function() return true end end)
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function SA_ApplyBypass()
+    if not SA_CFG.Bypass then return end
+    local now = os.clock()
+    if (now - (SA_State.LastBypass or 0)) < 3.0 then return end
+    SA_State.LastBypass = now
+
+    local pc = nil
+    pcall(function()
+        if GameplayData and GameplayData.GetPlayerController then pc = GameplayData.GetPlayerController() end
+        if not SA_Valid(pc) and slua_GameFrontendHUD then pc = slua_GameFrontendHUD:GetPlayerController() end
+    end)
+
+    if SA_Valid(pc) then
+        local components = {}
+        pcall(function() if pc.HiggsBoson then components[#components + 1] = pc.HiggsBoson end end)
+        pcall(function() if pc.HiggsBosonComponent then components[#components + 1] = pc.HiggsBosonComponent end end)
+        for i = 1, #components do
+            local comp = components[i]
+            pcall(function() comp.bMHActive = false end)
+            pcall(function() comp.bCallPreReplication = false end)
+            pcall(function() if type(comp.ControlMHActive) == "function" then comp:ControlMHActive(0) end end)
+        end
+    end
+
+    pcall(function()
+        local cb = _G.AvatarCheckCallback
+        if type(cb) == "table" then
+            cb.StartAvatarCheck = function() return true end
+            cb.OnReportItemID = function() return true end
+            cb.ReportItemID = function() return true end
+        end
+    end)
+
+    SA_PatchReportModules()
+    if not SA_State.ReportPatched then
+        SA_State.ReportPatched = true
+        _G.SA_BYPASS_ACTIVE = true
+    end
+end
+
+-- ============================================================================
+-- NATIVE MENU
+-- ============================================================================
+
+local function SA_MenuBool(key)
+    return function() return SA_CFG[key] == true end
+end
+
+local function SA_MenuToggle(key)
     return function(_, v)
         local value = v and true or false
-        if BT_CFG[key] == value then return true end
-        BT_CFG[key] = value
-        BT_MarkDirty()
-        if not value then
-            if key == "Enable" then pcall(_G.BulletTrackOff) end
-            if key == "Enable" or key == "Bypass" then pcall(_G.BulletTrackBypassOff) end
-        end
-        pcall(BT_SaveConfig, true)
+        if SA_CFG[key] == value then return true end
+        SA_CFG[key] = value
+        SA_MarkDirty()
+        pcall(SA_SaveConfig, true)
         return true
     end
 end
 
-local function BT_MenuNumber(key, minv, maxv)
+local function SA_MenuNumber(key, minv, maxv)
     return function(_, v)
         local n = math.floor((tonumber(v) or minv) + 0.5)
         if n < minv then n = minv end
         if n > maxv then n = maxv end
-        if BT_CFG[key] == n then return true end
-        BT_CFG[key] = n
-        BT_MarkDirty()
-        pcall(BT_SaveConfig, true)
+        if SA_CFG[key] == n then return true end
+        SA_CFG[key] = n
+        SA_MarkDirty()
+        pcall(SA_SaveConfig, true)
         return true
     end
 end
 
-local function BT_ResetConfig()
-    pcall(_G.BulletTrackOff)
-    pcall(_G.BulletTrackBypassOff)
-    for k, v in pairs(BT_DEFAULTS) do BT_CFG[k] = v end
-    BT_ClampConfig()
-    BT_MarkDirty()
-    pcall(BT_SaveConfig, true)
-    BT_Notify("SETTINGS RESET TO DEFAULT")
-end
-
-local function BT_BuildMenuPage(AliasMap)
-    local stack = {
-        { Key = "BT_Enable", UI = AliasMap.TitleSwitcher, Text = "BULLET TRACK HEAD", ExpandIndex = 0,
-          GetFunc = BT_MenuBool("Enable"), SetFunc = BT_MenuToggle("Enable") },
-        { Key = "BT_Bypass", UI = AliasMap.Switcher, Text = "  ANTI-REPORT SHIELD", ExpandHandle = "BT_Enable",
-          GetFunc = BT_MenuBool("Bypass"), SetFunc = BT_MenuToggle("Bypass") },
-        { Key = "BT_Power", UI = AliasMap.Slider, Text = "  BULLET BIAS 10-100", ExpandHandle = "BT_Enable", MinValue = 10, MaxValue = 100, min = 10, max = 100,
-          GetFunc = function() return math.floor(BT_CFG.Power + 0.5) end, SetFunc = BT_MenuNumber("Power", 10, 100) },
-        { Key = "BT_Hip", UI = AliasMap.Slider, Text = "  HIP DISTANCE 10-40M", ExpandHandle = "BT_Enable", MinValue = 10, MaxValue = 40, min = 10, max = 40,
-          GetFunc = function() return math.floor(BT_CFG.Hip + 0.5) end, SetFunc = BT_MenuNumber("Hip", 10, 40) },
-        { Key = "BT_Scope", UI = AliasMap.Slider, Text = "  SCOPE DISTANCE 30-180M", ExpandHandle = "BT_Enable", MinValue = 30, MaxValue = 180, min = 30, max = 180,
-          GetFunc = function() return math.floor(BT_CFG.Scope + 0.5) end, SetFunc = BT_MenuNumber("Scope", 30, 180) },
-        { Key = "BT_Knock", UI = AliasMap.Switcher, Text = "  IGNORE KNOCKED", ExpandHandle = "BT_Enable",
-          GetFunc = BT_MenuBool("IgKnock"), SetFunc = BT_MenuToggle("IgKnock") },
-        { Key = "BT_Bot", UI = AliasMap.Switcher, Text = "  IGNORE BOTS", ExpandHandle = "BT_Enable",
-          GetFunc = BT_MenuBool("IgBot"), SetFunc = BT_MenuToggle("IgBot") },
-        { Key = "BT_Reset", UI = AliasMap.Switcher, Text = "RESET ALL VALUES TO DEFAULT",
+-- Build a fresh page every time Settings is opened. The game caches slider
+-- widget state per page instance, so a stale page can display old values even
+-- when SA_CFG was already updated and saved.
+local function SA_BuildMenuPage(AliasMap)
+    local aimStack = {
+        { Key = "SA_Aim_Enable", UI = AliasMap.TitleSwitcher, Text = "SMOOTH AIMBOT", ExpandIndex = 0,
+          GetFunc = SA_MenuBool("Aimbot"), SetFunc = SA_MenuToggle("Aimbot") },
+        { Key = "SA_Aim_Mode", UI = AliasMap.Slider, Text = "  ACTIVATION 1=ADS 2=HIP 3=BOTH", ExpandHandle = "SA_Aim_Enable", MinValue = 1, MaxValue = 3, min = 1, max = 3,
+          GetFunc = function() return math.floor(SA_CFG.AimMode + 0.5) end, SetFunc = SA_MenuNumber("AimMode", 1, 3) },
+        { Key = "SA_Aim_Trigger", UI = AliasMap.Slider, Text = "  TRIGGER 1=FIRE 2=ALWAYS", ExpandHandle = "SA_Aim_Enable", MinValue = 1, MaxValue = 2, min = 1, max = 2,
+          GetFunc = function() return math.floor(SA_CFG.AimTrigger + 0.5) end, SetFunc = SA_MenuNumber("AimTrigger", 1, 2) },
+        { Key = "SA_Aim_Bone", UI = AliasMap.Slider, Text = "  TARGET 1=HEAD 2=CHEST 3=STOMACH", ExpandHandle = "SA_Aim_Enable", MinValue = 1, MaxValue = 3, min = 1, max = 3,
+          GetFunc = function() return math.floor(SA_CFG.AimBone + 0.5) end, SetFunc = SA_MenuNumber("AimBone", 1, 3) },
+        { Key = "SA_Aim_FOV", UI = AliasMap.Slider, Text = "  HIP FOV 5-60 (SMALL IS SAFER)", ExpandHandle = "SA_Aim_Enable", MinValue = 5, MaxValue = 60, min = 5, max = 60,
+          GetFunc = function() return math.floor(SA_CFG.AimFOV + 0.5) end, SetFunc = SA_MenuNumber("AimFOV", 5, 60) },
+        { Key = "SA_Aim_FOV_ADS", UI = AliasMap.Slider, Text = "  SCOPE/ADS FOV 5-60", ExpandHandle = "SA_Aim_Enable", MinValue = 5, MaxValue = 60, min = 5, max = 60,
+          GetFunc = function() return math.floor((SA_CFG.AimFOVADS or SA_CFG.AimFOV) + 0.5) end, SetFunc = SA_MenuNumber("AimFOVADS", 5, 60) },
+        { Key = "SA_Aim_Speed", UI = AliasMap.Slider, Text = "  HIP SMOOTH SPEED 5-100", ExpandHandle = "SA_Aim_Enable", MinValue = 5, MaxValue = 100, min = 5, max = 100,
+          GetFunc = function() return math.floor(SA_CFG.AimSpeed + 0.5) end, SetFunc = SA_MenuNumber("AimSpeed", 5, 100) },
+        { Key = "SA_Aim_Speed_ADS", UI = AliasMap.Slider, Text = "  SCOPE/ADS SPEED 5-100", ExpandHandle = "SA_Aim_Enable", MinValue = 5, MaxValue = 100, min = 5, max = 100,
+          GetFunc = function() return math.floor((SA_CFG.AimSpeedADS or SA_CFG.AimSpeed) + 0.5) end, SetFunc = SA_MenuNumber("AimSpeedADS", 5, 100) },
+        { Key = "SA_Aim_Dist", UI = AliasMap.Slider, Text = "  MAX DISTANCE 10-300M", ExpandHandle = "SA_Aim_Enable", MinValue = 10, MaxValue = 300, min = 10, max = 300,
+          GetFunc = function() return math.floor(SA_CFG.AimDistance + 0.5) end, SetFunc = SA_MenuNumber("AimDistance", 10, 300) },
+        { Key = "SA_Aim_Vis", UI = AliasMap.Switcher, Text = "  VISIBILITY CHECK", ExpandHandle = "SA_Aim_Enable",
+          GetFunc = SA_MenuBool("AimVis"), SetFunc = SA_MenuToggle("AimVis") },
+        { Key = "SA_Aim_Knock", UI = AliasMap.Switcher, Text = "  IGNORE KNOCKED", ExpandHandle = "SA_Aim_Enable",
+          GetFunc = SA_MenuBool("AimIgnoreKnock"), SetFunc = SA_MenuToggle("AimIgnoreKnock") },
+        { Key = "SA_Aim_Bot", UI = AliasMap.Switcher, Text = "  IGNORE BOTS", ExpandHandle = "SA_Aim_Enable",
+          GetFunc = SA_MenuBool("AimIgnoreBot"), SetFunc = SA_MenuToggle("AimIgnoreBot") },
+        { Key = "SA_Reset_All", UI = AliasMap.Switcher, Text = "RESET ALL VALUES TO DEFAULT",
           GetFunc = function() return false end,
-          SetFunc = function(_, v) if v then pcall(BT_ResetConfig) end return true end },
+          SetFunc = function(_, v)
+              if v then pcall(SA_ResetConfig) end
+              return true
+          end },
+    }
+
+    local espStack = {
+        { Key = "SA_Esp_Enable", UI = AliasMap.Switcher, Text = "ESP ENABLE",
+          GetFunc = SA_MenuBool("ESP"), SetFunc = SA_MenuToggle("ESP") },
+        { Key = "SA_Esp_Glow", UI = AliasMap.Switcher, Text = "ENEMY GLOW / CHAMS",
+          GetFunc = SA_MenuBool("ESPGlow"), SetFunc = SA_MenuToggle("ESPGlow") },
+        { Key = "SA_Esp_Box", UI = AliasMap.Switcher, Text = "ENEMY BOX FRAME",
+          GetFunc = SA_MenuBool("ESPBox"), SetFunc = SA_MenuToggle("ESPBox") },
+        { Key = "SA_Esp_HP", UI = AliasMap.Switcher, Text = "HEALTH BAR",
+          GetFunc = SA_MenuBool("ESPHealth"), SetFunc = SA_MenuToggle("ESPHealth") },
+        { Key = "SA_Esp_Dist", UI = AliasMap.Switcher, Text = "DISTANCE MARKER",
+          GetFunc = SA_MenuBool("ESPDistance"), SetFunc = SA_MenuToggle("ESPDistance") },
+        { Key = "SA_Esp_Max", UI = AliasMap.Slider, Text = "MAX DISTANCE 100-800M", MinValue = 100, MaxValue = 800, min = 100, max = 800,
+          GetFunc = function() return math.floor(SA_CFG.ESPMaxDistance + 0.5) end, SetFunc = SA_MenuNumber("ESPMaxDistance", 100, 800) },
+    }
+
+    local displayStack = {
+        { Key = "SA_Display_FPS", UI = AliasMap.Switcher, Text = "UNLOCK 120 FPS",
+          GetFunc = SA_MenuBool("FPS120"), SetFunc = SA_MenuToggle("FPS120") },
+        { Key = "SA_Display_IPad", UI = AliasMap.TitleSwitcher, Text = "CUSTOM IPAD VIEW", ExpandIndex = 0,
+          GetFunc = SA_MenuBool("IPadView"), SetFunc = SA_MenuToggle("IPadView") },
+        { Key = "SA_Display_IPadFOV", UI = AliasMap.Slider, Text = "  IPAD FOV 90-120", ExpandHandle = "SA_Display_IPad", MinValue = 90, MaxValue = 120, min = 90, max = 120,
+          GetFunc = function() return math.floor(SA_CFG.IPadFOV + 0.5) end, SetFunc = SA_MenuNumber("IPadFOV", 90, 120) },
+    }
+
+    local bypassStack = {
+        { Key = "SA_Bypass_Status", UI = AliasMap.Switcher, Text = "STEALTH BYPASS ACTIVE",
+          GetFunc = function() return SA_CFG.Bypass == true end, SetFunc = function(_, v) return true end },
+        { Key = "SA_Bypass_Info", UI = AliasMap.Switcher, Text = "LOCAL ANTI-REPORT + SAFE SCAN LAYER",
+          GetFunc = function() return true end, SetFunc = function(_, v) return true end },
     }
 
     return {
-        Key = "BTMENU",
-        Text = "BULLET TRACK",
+        Key = "SAMenu",
+        Text = "SAFE MOD",
         UIKey = "Setting_Page_Privacy",
         Category = {
-            { Key = "BT_Cat_Main", Text = "BULLET TRACK", Stack = stack },
+            { Key = "SA_Cat_Aim", Text = "AIMBOT", Stack = aimStack },
+            { Key = "SA_Cat_ESP", Text = "ESP", Stack = espStack },
+            { Key = "SA_Cat_Display", Text = "DISPLAY / FPS", Stack = displayStack },
+            { Key = "SA_Cat_Bypass", Text = "STEALTH BYPASS", Stack = bypassStack },
         }
     }
 end
 
-local function BT_IsSettingUI(x)
+local function SA_IsSettingUI(x)
     if type(x) == "string" then
         return string.find(string.lower(x), "setting", 1, true) ~= nil
     end
@@ -1850,13 +2322,16 @@ local function BT_IsSettingUI(x)
     return false
 end
 
-function _G.BT_InitMenu()
-    if BT_State.MenuReady then return true end
+function _G.SA_InitMenu()
+    if SA_Expired then return false end
+    if SA_State.MenuReady then return true end
 
     local ok = pcall(function()
         local LocUtil = _G.LocUtil
-        if not LocUtil then pcall(function() LocUtil = require("client.common.LocUtil") end) end
-        if LocUtil and not LocUtil._BTMenuHooked then
+        if not LocUtil then
+            pcall(function() LocUtil = require("client.common.LocUtil") end)
+        end
+        if LocUtil and not LocUtil._SAMenuHooked then
             local oldGet = LocUtil.GetLocalizeResStr
             if type(oldGet) == "function" then
                 LocUtil.GetLocalizeResStr = function(id, ...)
@@ -1864,7 +2339,7 @@ function _G.BT_InitMenu()
                     return oldGet(id, ...)
                 end
             end
-            LocUtil._BTMenuHooked = true
+            LocUtil._SAMenuHooked = true
         end
 
         local SettingPageDefine = require("client.logic.NewSetting.SettingPageDefine")
@@ -1872,62 +2347,74 @@ function _G.BT_InitMenu()
         local AliasMap = require("client.slua.umg.NewSetting.Item.AliasMap")
 
         local hasPage = false
-        if SettingPageDefine.BTMENU then
+        if SettingPageDefine.SAMenu then
             for i = 1, #SettingCatalog do
                 local p = SettingCatalog[i]
-                if type(p) == "table" and (p.Key == "BTMENU" or p.Key == "BULLET TRACK") then hasPage = true end
+                if type(p) == "table" and (p.Key == "SAMenu" or p.Key == "SAFE_MOD") then hasPage = true end
             end
         end
-        if not SettingPageDefine.BTMENU then
-            SettingPageDefine.BTMENU = BT_BuildMenuPage(AliasMap)
+
+        if not SettingPageDefine.SAMenu then
+            SettingPageDefine.SAMenu = SA_BuildMenuPage(AliasMap)
         end
-        if not hasPage then table.insert(SettingCatalog, SettingPageDefine.BTMENU) end
+
+        if not hasPage then
+            table.insert(SettingCatalog, SettingPageDefine.SAMenu)
+        end
 
         local UIManager = _G.UIManager
         if UIManager then
-            if not UIManager._BTMenuHooked then
+            if not UIManager._SAMenuHooked then
                 local oldShow = UIManager.ShowUI
                 if type(oldShow) == "function" then
                     UIManager.ShowUI = function(config, ...)
                         local args = { ... }
                         local n = select("#", ...)
-                        if BT_IsSettingUI(config) then
-                            pcall(BT_LoadConfig)
+                        if SA_IsSettingUI(config) then
+                            -- Reload saved values and rebuild the page before the UI
+                            -- reads GetFunc, so reopening can never show stale widgets.
+                            pcall(SA_LoadConfig)
                             pcall(function()
                                 local SPD = require("client.logic.NewSetting.SettingPageDefine")
                                 local CAT = require("client.logic.NewSetting.SettingCatalog")
                                 local AM = require("client.slua.umg.NewSetting.Item.AliasMap")
-                                local fresh = BT_BuildMenuPage(AM)
-                                SPD.BTMENU = fresh
+                                local fresh = SA_BuildMenuPage(AM)
+                                SPD.SAMenu = fresh
+
                                 local function replaceIn(list)
                                     if type(list) ~= "table" then return false end
                                     local found = false
                                     for i = 1, #list do
                                         local p = list[i]
-                                        if type(p) == "table" and (p.Key == "BTMENU" or p.Key == "BULLET TRACK") then
+                                        if type(p) == "table" and (p.Key == "SAMenu" or p.Key == "SAFE_MOD") then
                                             list[i] = fresh
                                             found = true
                                         end
                                     end
                                     return found
                                 end
+
                                 if not replaceIn(CAT) then table.insert(CAT, fresh) end
-                                if type(args[1]) == "table" and not replaceIn(args[1]) then table.insert(args[1], fresh) end
+                                if type(args[1]) == "table" and not replaceIn(args[1]) then
+                                    table.insert(args[1], fresh)
+                                end
                             end)
                         end
                         local unpackFn = table.unpack or unpack
                         return oldShow(config, unpackFn(args, 1, n))
                     end
                 end
-                UIManager._BTMenuHooked = true
+                UIManager._SAMenuHooked = true
             end
 
-            if not UIManager._BTMenuCloseHooked then
+            if not UIManager._SAMenuCloseHooked then
                 local function wrapClose(name)
                     local old = UIManager[name]
                     if type(old) ~= "function" then return end
                     UIManager[name] = function(...)
-                        if BT_IsSettingUI(select(1, ...)) then pcall(BT_SaveConfig, true) end
+                        if SA_IsSettingUI(select(1, ...)) then
+                            pcall(SA_SaveConfig, true)
+                        end
                         return old(...)
                     end
                 end
@@ -1935,58 +2422,107 @@ function _G.BT_InitMenu()
                 wrapClose("HideUI")
                 wrapClose("RemoveUI")
                 wrapClose("DestroyUI")
-                UIManager._BTMenuCloseHooked = true
+                UIManager._SAMenuCloseHooked = true
             end
         end
+
         return true
     end)
 
-    if ok then BT_State.MenuReady = true end
-    return BT_State.MenuReady
+    if ok then
+        SA_State.MenuReady = true
+    end
+    return SA_State.MenuReady
 end
 
--- ---------------------------------------------------------------------------
--- Loops
--- ---------------------------------------------------------------------------
+-- ============================================================================
+-- LOOPS
+-- ============================================================================
 
-local function BT_StartLoops()
+local function SA_MainOnce()
+    if SA_Expired then return end
+    local now = os.clock()
+
+    pcall(SA_ApplyDisplay)
+    pcall(SA_UpdateESP)
+    pcall(SA_ApplyBypass)
+
+    if not SA_State.MenuReady and (now - (SA_State.LastMenuTry or 0)) > 2.0 then
+        SA_State.LastMenuTry = now
+        pcall(_G.SA_InitMenu)
+    end
+
+    if SA_State.Dirty and (now - (SA_State.LastSave or 0)) > 5.0 then
+        pcall(SA_SaveConfig)
+    end
+end
+
+local function SA_StartLoops()
+    if SA_Expired then return false end
     local ok, ticker = pcall(require, "common.time_ticker")
     if not ok or not ticker or type(ticker.AddTimerOnce) ~= "function" then
         return false
     end
 
-    _G.BTLoopToken = (_G.BTLoopToken or 0) + 1
-    local token = _G.BTLoopToken
+    _G.SALoopToken = (_G.SALoopToken or 0) + 1
+    local token = _G.SALoopToken
 
     local function mainLoop()
-        if _G.BTLoopToken ~= token then return end
-        pcall(function()
-            if not BT_State.MenuReady and (os.clock() - BT_State.LastMenuTry) > 2.0 then
-                BT_State.LastMenuTry = os.clock()
-                pcall(_G.BT_InitMenu)
-            end
-            if BT_State.Dirty and (os.clock() - BT_State.LastSave) > 5.0 then
-                pcall(BT_SaveConfig)
-            end
-        end)
+        if _G.SALoopToken ~= token then return end
+        pcall(SA_MainOnce)
         pcall(function() ticker.AddTimerOnce(0.12, mainLoop) end)
     end
 
     local function aimLoop()
-        if _G.BTLoopToken ~= token then return end
-        pcall(BT_Tick)
+        if _G.SALoopToken ~= token then return end
+        pcall(SA_AimOnce)
         pcall(function() ticker.AddTimerOnce(0.02, aimLoop) end)
     end
 
     pcall(function() ticker.AddTimerOnce(0.2, mainLoop) end)
     pcall(function() ticker.AddTimerOnce(0.5, aimLoop) end)
-    BT_Notify("ACTIVE - SOHAILPG1")
     return true
 end
 
-if not _G.BTLoopsStarted then
-    if BT_StartLoops() then _G.BTLoopsStarted = true end
+if SA_Expired then
+    pcall(function()
+        local ok, ticker = pcall(require, "common.time_ticker")
+        if ok and ticker and type(ticker.AddTimerOnce) == "function" then
+            ticker.AddTimerOnce(3.0, SA_ShowExpiredPopup)
+        else
+            SA_ShowExpiredPopup()
+        end
+    end)
+else
+    -- Load saved settings only once per runtime/session to avoid reverting unsaved changes on reload.
+    if not _G.SAConfigLoadedFromDisk then
+        SA_LoadConfig()
+        _G.SAConfigLoadedFromDisk = true
+    end
+
+    pcall(function()
+        if _G.SALoopsStarted then return end
+        if SA_StartLoops() then
+            _G.SALoopsStarted = true
+            local ok, ticker = pcall(require, "common.time_ticker")
+            if ok and ticker and type(ticker.AddTimerOnce) == "function" then
+                pcall(function()
+                    ticker.AddTimerOnce(6.0, function()
+                        pcall(SA_ShowWelcomePopup)
+                    end)
+                end)
+            end
+        else
+            local ok, ticker = pcall(require, "common.time_ticker")
+            if ok and ticker and type(ticker.AddTimerOnce) == "function" then
+                pcall(function() ticker.AddTimerOnce(6.0, SA_ShowWelcomePopup) end)
+            else
+                pcall(SA_ShowWelcomePopup)
+            end
+        end
+    end)
 end
+
 local class = require("class")
 local CCharacterBase = require("GameLua.GameCore.Framework.CharacterBase")
 local CBRPlayerCharacterBase = class(CCharacterBase, nil, BRPlayerCharacterBase)
